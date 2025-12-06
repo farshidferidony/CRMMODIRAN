@@ -1,0 +1,47 @@
+@extends('layouts.master')
+@section('title','ایجاد کاربر')
+
+@section('content')
+@component('common-components.breadcrumb')
+    @slot('pagetitle') مدیریت کاربران @endslot
+    @slot('title') ایجاد کاربر جدید @endslot
+@endcomponent
+
+<div class="row">
+    <div class="col-lg-6">
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <ul>@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+            </div>
+        @endif
+
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="{{ route('users.store') }}">
+                    @csrf
+                    <div class="mb-3">
+                        <label class="form-label">نام</label>
+                        <input type="text" name="name" class="form-control"
+                               value="{{ old('name') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ایمیل / نام کاربری</label>
+                        <input type="email" name="email" class="form-control"
+                               value="{{ old('email') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">کلمه عبور</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">تکرار کلمه عبور</label>
+                        <input type="password" name="password_confirmation" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">ذخیره</button>
+                    <a href="{{ route('users.index') }}" class="btn btn-secondary">بازگشت</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
