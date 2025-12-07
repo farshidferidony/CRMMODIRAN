@@ -85,7 +85,7 @@
                         <li><a href="{{ route('pre-invoices.index') }}">لیست پیش‌فاکتورها</a></li>
                         <li><a href="{{ route('pre-invoices.create') }}">ثبت پیش‌فاکتور جدید</a></li>
                         {{-- اگر فیلتر داشتی، می‌توانی لینک‌های ویژه هم بگذاری --}}
-                        <li><a href="{{ route('purchase-pre-invoices.index') }}">پیش‌فاکتورهای خرید</a></li>
+                        <li><a href="{{ route('purchase_pre_invoices.index') }}">پیش‌فاکتورهای خرید</a></li>
                     </ul>
                 </li>
 

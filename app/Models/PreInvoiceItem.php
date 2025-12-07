@@ -52,6 +52,12 @@ class PreInvoiceItem extends Model
             ->useLogName('User');
     }
 
+    protected $casts = [
+        'final_quantity' => 'float',
+        'final_unit_price' => 'float',
+        'final_total_price' => 'float',
+    ];
+
     public function purchaseAssignments()
     {
         return $this->hasMany(PurchaseAssignment::class, 'pre_invoice_item_id');

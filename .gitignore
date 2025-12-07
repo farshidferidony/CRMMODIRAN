@@ -3,14 +3,8 @@
 /public/storage
 /storage/*.key
 /vendor
-.env.backup
-/storage/logs/*
-/storage/framework/cache/*
-/storage/framework/sessions/*
-/storage/framework/views/*
 .env
-.env.*
-public/storage
+.env.backup
 .phpunit.result.cache
 docker-compose.override.yml
 Homestead.json

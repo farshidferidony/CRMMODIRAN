@@ -35,7 +35,7 @@
             {{-- ماژول خرید / مدیر خرید --}}
             <h6 class="mb-2">خرید</h6>
             <div class="list-group mb-3">
-                <a href="{{ route('purchase-pre-invoices.index') }}" class="list-group-item list-group-item-action">
+                <a href="{{ route('purchase_pre_invoices.index') }}" class="list-group-item list-group-item-action">
                     پیش‌فاکتورهای خرید (ارجاع شده)
                 </a>
                 <a href="{{ route('buyer.assignments.index') }}" class="list-group-item list-group-item-action">

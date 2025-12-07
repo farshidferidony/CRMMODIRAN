@@ -21,7 +21,12 @@ use App\Http\Controllers\PurchasePreInvoiceController;
 use App\Http\Controllers\SourceController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PreInvoicePaymentPlanController;
+use App\Http\Controllers\FinancePaymentController;
 use App\Models\ProductCategory;
+
+
+
+use App\Http\Controllers\PurchaseExecutionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -104,23 +109,31 @@ Route::prefix('pre-invoices')->name('pre_invoices.')->group(function () {
 
     Route::post('{pre_invoice}/payment-plan', [PreInvoicePaymentPlanController::class, 'store'])->name('payment_plan.store');
 
+    
+    Route::post('{pre_invoice}/send-to-finance', [PreInvoiceController::class, 'sendToFinance'])->name('send_to_finance');
 
+    Route::post('{pre_invoice}/advance-confirm', [PreInvoiceController::class, 'advanceConfirm'])->name('advance_confirm');
+
+    
+    Route::post('{pre_invoice}/go-to-buying', [PreInvoiceController::class, 'goToBuying'])->name('go_to_buying');
 
 });
 
 
 
 
-Route::prefix('purchase-pre-invoices')->name('purchase-pre-invoices.')->group(function () {
 
-    Route::get('/', [PreInvoiceController::class, 'purchaseIndex'])->name('index');
-    // خرید (پیش‌فاکتورهای خرید)
-    Route::get('{preInvoice}', [PreInvoiceController::class, 'showPurchase'])->name('show');
-});
+
 
 // Purchase Workflow
 Route::post('sale-pre-invoices/{sale_pre_invoice}/create-purchase', [PurchasePreInvoiceController::class, 'store'])->name('sale-pre-invoices.create-purchase');
-Route::post('purchase-assignments', [PurchaseAssignmentController::class, 'store'])->name('purchase-assignments.store');
+
+
+Route::prefix('purchase-assignments')->name('purchase_assignments.')->group(function () {
+    Route::post('/', [PurchaseAssignmentController::class, 'store'])->name('store');
+    Route::post('{assignment}/change-buyer',  [PurchaseAssignmentController::class, 'changeBuyer'])->name('change_buyer');
+    Route::post('{assignment}/change-source', [PurchaseAssignmentController::class, 'changeSource'])->name('change_source');
+});
 
 // Buyer Dashboard
 Route::prefix('buyer/assignments')->name('buyer.assignments.')->group(function () {
@@ -170,8 +183,34 @@ Route::prefix('finance/payments')->name('finance.payments.')->group(function () 
     Route::post('{payment}/reject', [FinancePaymentController::class, 'reject'])->name('reject');
 });
 
+// Route::prefix('purchase-pre-invoices')->name('purchase-pre-invoices.')->group(function () {
+
+//     Route::get('/', [PreInvoiceController::class, 'purchaseIndex'])->name('index');
+//     // خرید (پیش‌فاکتورهای خرید)
+//     Route::get('{preInvoice}', [PreInvoiceController::class, 'showPurchase'])->name('show');
+// });
+
+// Route::prefix('purchase-pre-invoices')->name('purchase_pre_invoices.')->group(function () {
+//     Route::get('{preInvoice}', [PreInvoiceController::class, 'showPurchase'])->name('purchase_show');
+// });
 
 
+Route::prefix('purchase-pre-invoices')->name('purchase_pre_invoices.')->group(function () {
+
+    Route::get('/', [PreInvoiceController::class, 'purchaseIndex'])->name('index');
+
+    // Route::get('{preInvoice}', [PreInvoiceController::class, 'showPurchase'])->name('show');
+
+    Route::get('{preInvoice}', [PreInvoiceController::class, 'showPurchase'])->name('purchase_show');
+
+    // Route::post('{preInvoice}/change-source', [PurchaseExecutionController::class, 'changeSource'])->name('change_source');
+
+    // Route::post('{preInvoice}/change-buyer', [PurchaseExecutionController::class, 'changeBuyer'])->name('change_buyer');
+
+    Route::post('items/{item}/finalize', [PurchaseExecutionController::class, 'finalizeItem'])->name('items.finalize');
+
+    Route::post('{preInvoice}/approve-purchase', [PurchaseExecutionController::class, 'approvePurchase'])->name('approve_purchase');
+});
 
 
 // User Roles
@@ -184,6 +223,7 @@ Route::post('invoices/{invoice}/payments', [PaymentController::class, 'store'])-
 Route::post('payments/{payment}/mark-paid', [PaymentController::class, 'markPaid'])->name('payments.mark-paid');
 Route::post('invoices/{invoice}/payment-plan', [InvoicePaymentPlanController::class, 'store'])->name('invoices.payment-plan.store');
 Route::post('plans/{plan}/pay', [PaymentController::class, 'payPlan'])->name('plans.pay');
+Route::post('plans/{plan}/pre-pay', [PaymentController::class, 'prePayPlan'])->name('plans.pre-pay');
 
 // Reports
 Route::get('reports/invoices/debtors', [InvoiceController::class, 'debtors'])->name('reports.invoices.debtors');

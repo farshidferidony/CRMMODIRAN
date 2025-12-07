@@ -26,10 +26,10 @@ class InvoicePaymentPlan extends Model
             ->useLogName('User');
     }
 
-    public function invoice()
-    {
-        return $this->belongsTo(Invoice::class);
-    }
+    // public function invoice()
+    // {
+    //     return $this->belongsTo(Invoice::class);
+    // }
 
     public function payments()
     {
@@ -47,5 +47,23 @@ class InvoicePaymentPlan extends Model
     {
         return $this->belongsTo(PreInvoice::class, 'pre_invoice_id');
     }
+
+
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class, 'invoice_id');
+    }
+
+    // هلدهر ساده:
+    public function isPurchase(): bool
+    {
+        return $this->preInvoice && $this->preInvoice->direction === 'purchase';
+    }
+
+    public function isSale(): bool
+    {
+        return $this->preInvoice && $this->preInvoice->direction === 'sale';
+    }
+
 
 }

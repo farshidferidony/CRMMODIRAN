@@ -42,7 +42,7 @@
                     <td>{{ number_format($pi->total_amount) }}</td>
                     <td>{{ $pi->status_label ?? $pi->status }}</td>
                     <td>
-                        <a href="{{ route('purchase-pre-invoices.show', $pi) }}"
+                        <a href="{{ route('purchase_pre_invoices.purchase_show', $pi) }}"
                         class="btn btn-sm btn-outline-primary">
                             جزئیات
                         </a>

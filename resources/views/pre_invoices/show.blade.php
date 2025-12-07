@@ -252,7 +252,256 @@
         </div>
         @endif
 
+        {{-- اقساط برنامه‌ریزی‌شده برای پیش‌فاکتور --}}
+        @if($pre_invoice->paymentPlans && $pre_invoice->paymentPlans->count())
+            <div class="card mt-4">
+                <div class="card-header">اقساط برنامه‌ریزی‌شده</div>
+                <div class="card-body">
+                    <table class="table table-bordered align-middle">
+                        <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>مبلغ قسط</th>
+                            <th>تاریخ برنامه‌ریزی‌شده</th>
+                            <th>نوع پرداخت</th>
+                            <th>توضیحات</th>
+                            <th>عملیات</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($pre_invoice->paymentPlans as $plan)
+                            <tr>
+                                <td>{{ $plan->id }}</td>
+                                <td>{{ number_format($plan->amount) }}</td>
+                                <td>{{ $plan->scheduled_date }}</td>
+                                <td>{{ $plan->payment_type }}</td>
+                                <td>{{ $plan->note }}</td>
+                                <td>
+                                    @if($plan->is_completed)
+                                        <span class="text-success">قسط بسته شده</span>
+                                    @else
+                                        {{-- فرم اعلام پرداخت واقعی توسط کارشناس فروش --}}
+                                        <form method="POST"
+                                            action="{{ route('plans.pre-pay', $plan->id) }}"
+                                            enctype="multipart/form-data"
+                                            class="d-flex gap-1">
+                                            @csrf
+                                            <input type="number" step="0.01" name="paid_amount"
+                                                class="form-control form-control-sm"
+                                                placeholder="مبلغ واقعی" required>
+                                            <input type="date" name="actual_paid_date"
+                                                class="form-control form-control-sm"
+                                                value="{{ now()->toDateString() }}" required>
+                                            <input type="file" name="receipt"
+                                                class="form-control form-control-sm"
+                                                accept="image/*,application/pdf">
+                                            <button class="btn btn-sm btn-success">
+                                                ثبت پرداخت
+                                            </button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @if($pre_invoice->hasAdvancePaidPendingFinance() && $pre_invoice->status !== 'WaitingFinance')
+                <form method="POST"
+                    action="{{ route('pre_invoices.send_to_finance', $pre_invoice->id) }}"
+                    class="d-inline">
+                    @csrf
+                    <button class="btn btn-warning">
+                        ارسال به مالی برای تایید پیش‌پرداخت
+                    </button>
+                </form>
+            @endif
+
+
+        @endif
+
+
+
     @endif
+
+
+    @php
+        use App\Enums\PreInvoiceStatus;
+    @endphp
+
+    {{-- دکمه تایید کلی پیش‌پرداخت --}}
+    @if($pre_invoice->status === PreInvoiceStatus::AdvanceWaitingFinance)
+        <div class="mt-3">
+
+            {{-- دکمه تایید کلی (فقط اگر حداقل یک پرداخت تایید شده باشد) --}}
+            <form method="POST"
+                action="{{ route('pre_invoices.advance_confirm', $pre_invoice->id) }}"
+                class="d-inline">
+                @csrf
+                <button class="btn btn-success"
+                        @if(! $pre_invoice->hasConfirmedPayments()) disabled @endif>
+                    تایید واریزی
+                </button>
+            </form>
+
+            {{-- دکمه باز/بستن لیست اقساط / واریزی‌ها برای تایید آیتمی --}}
+            <button class="btn btn-outline-primary ms-2"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#finance-payments-collapse"
+                    aria-expanded="false"
+                    aria-controls="finance-payments-collapse">
+                ویرایش اقساط برنامه‌ریزی‌شده
+            </button>
+
+            {{-- بخش آبشاری: لیست پرداخت‌ها برای تایید / رد توسط مالی --}}
+            <div class="collapse mt-3" id="finance-payments-collapse">
+                <div class="card">
+                    <div class="card-header">
+                        لیست واریزی‌ها (پیش‌پرداخت)
+                    </div>
+                    <div class="card-body p-0">
+                        @php
+                            $payments = $pre_invoice->paymentsForFinance();
+                        @endphp
+
+                        @if($payments->isEmpty())
+                            <div class="p-3 text-muted">
+                                تاکنون پرداختی برای این پیش‌فاکتور ثبت نشده است.
+                            </div>
+                        @else
+                            <table class="table table-bordered table-sm mb-0 align-middle">
+                                <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>مبلغ برنامه‌ای</th>
+                                    <th>مبلغ پرداخت‌شده</th>
+                                    <th>تاریخ برنامه‌ریزی‌شده</th>
+                                    <th>تاریخ پرداخت</th>
+                                    <th>نوع</th>
+                                    <th>وضعیت</th>
+                                    <th>سند</th>
+                                    <th>عملیات مالی</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($payments as $pay)
+                                    <tr>
+                                        <td>{{ $pay->id }}</td>
+                                        <td>{{ number_format($pay->amount) }}</td>
+                                        <td>{{ $pay->paid_amount ? number_format($pay->paid_amount) : '-' }}</td>
+                                        <td>{{ $pay->scheduled_date }}</td>
+                                        <td>{{ $pay->actual_paid_date }}</td>
+                                        <td>{{ $pay->payment_type }}</td>
+                                        <td>{{ $pay->status }}</td>
+                                        <td>
+                                            @if($pay->receipt_path)
+                                                <a href="{{ asset('storage/' . $pay->receipt_path) }}"
+                                                target="_blank">
+                                                    مشاهده
+                                                </a>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($pay->status !== 'confirmed')
+                                                {{-- تایید مالی این واریزی --}}
+                                                <form method="POST"
+                                                    action="{{ route('finance.payments.confirm', $pay->id) }}"
+                                                    class="d-inline">
+                                                    @csrf
+                                                    <button class="btn btn-sm btn-success mb-1">
+                                                        تایید
+                                                    </button>
+                                                </form>
+
+                                                {{-- رد مالی این واریزی --}}
+                                                <form method="POST"
+                                                    action="{{ route('finance.payments.reject', $pay->id) }}"
+                                                    class="d-inline">
+                                                    @csrf
+                                                    <input type="hidden" name="finance_reject_reason"
+                                                        value="رد توسط مالی در مرحله پیش‌پرداخت">
+                                                    <button class="btn btn-sm btn-danger mb-1">
+                                                        رد
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <span class="text-success">تایید شده</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    @endif
+
+
+    {{-- وقتی پیش‌پرداخت نهایی شد و باید به خرید برویم --}}
+    @if($pre_invoice->status === PreInvoiceStatus::AdvanceFinanceApproved)
+        <form method="POST"
+            action="{{ route('pre_invoices.go_to_buying', $pre_invoice->id) }}"
+            class="mt-3">
+            @csrf
+            <button class="btn btn-primary">
+                انتقال به مرحله خرید
+            </button>
+        </form>
+    @endif
+
+    @if(in_array($pre_invoice->status, [
+        PreInvoiceStatus::WaitingPurchaseExecution,
+        PreInvoiceStatus::Purchasing,
+    ]))
+        <div class="alert alert-info mt-3">
+            پیش‌فاکتور در حال خرید توسط تیم خرید است. لطفاً تا تکمیل خرید صبر کنید.
+        </div>
+    @endif
+
+    {{-- وقتی در حال اجرای خرید هست --}}
+    @if(in_array($pre_invoice->status, [
+        PreInvoiceStatus::WaitingPurchaseExecution,
+    ]))
+        <div class="alert alert-info">
+            خرید این پیش‌فاکتور در حال انجام توسط تیم خرید است.
+        </div>
+
+        @if($pre_invoice->purchasePreInvoices->count())
+            <ul>
+                @foreach($pre_invoice->purchasePreInvoices as $ppi)
+                    <li>
+                        پیش‌فاکتور خرید #{{ $ppi->id }}
+                        - منبع: {{ $ppi->source?->name }}
+                        - وضعیت: {{ $ppi->status }}
+                        <a href="{{ route('purchase_pre_invoices.purchase_show', $ppi->id) }}" target="_blank">
+                            مشاهده جزئیات خرید
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+    @endif
+
+    {{-- وقتی خرید کامل شد و نوبت فرم حمل است --}}
+    @if($pre_invoice->status === PreInvoiceStatus::PurchaseCompleted)
+        <div class="alert alert-success">
+            خرید این پیش‌فاکتور کامل شده است؛ می‌توانید فرم حمل را ثبت کنید.
+        </div>
+
+        <form method="GET" action="{{ route('transports.create_from_pre_invoice', $preInvoice->id) }}">
+            <button class="btn btn-primary">
+                ایجاد فرم حمل
+            </button>
+        </form>
+    @endif
+
 
 
     </div>

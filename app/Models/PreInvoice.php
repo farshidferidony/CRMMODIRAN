@@ -47,6 +47,12 @@ class PreInvoice extends Model
         return $this->hasMany(PreInvoiceItem::class, 'purchase_pre_invoice_id');
     }
 
+    // آیتم‌های خرید
+    // public function purchaseItems()
+    // {
+    //     return $this->hasMany(PreInvoiceItem::class, 'pre_invoice_id')
+    //         ->whereHas('preInvoice', fn($q) => $q->where('direction', 'purchaseItems'));
+    // }
 
     public function customer() { return $this->belongsTo(Customer::class); }
     public function source() { return $this->belongsTo(Source::class); }
@@ -165,9 +171,16 @@ class PreInvoice extends Model
         return $this->status === PreInvoiceStatus::ApprovedBySalesManager;
     }
 
+    // public function salePreInvoice()
+    // {
+    //     return $this->belongsTo(self::class, 'sale_pre_invoice_id');
+    // }
+
+    // پیش‌فاکتور خرید، لینک به پیش‌فاکتور فروش اصلی
     public function salePreInvoice()
     {
-        return $this->belongsTo(self::class, 'sale_pre_invoice_id');
+        return $this->belongsTo(PreInvoice::class, 'sale_pre_invoice_id')
+            ->where('direction', 'sale');
     }
 
     // public function purchasePreInvoices()
@@ -187,11 +200,18 @@ class PreInvoice extends Model
     //         ->where('direction', 'purchase');
     // }
 
+    // public function purchasePreInvoices()
+    // {
+    //     return $this->hasMany(self::class, 'sale_pre_invoice_id')
+    //         ->where('direction', 'purchase');
+    // }
+    // پیش‌فاکتور فروش، لیست پیش‌فاکتورهای خرید مرتبط
     public function purchasePreInvoices()
     {
-        return $this->hasMany(self::class, 'sale_pre_invoice_id')
+        return $this->hasMany(PreInvoice::class, 'sale_pre_invoice_id')
             ->where('direction', 'purchase');
     }
+
 
     public function hasActivePurchasePreInvoices(): bool
     {
@@ -233,6 +253,90 @@ class PreInvoice extends Model
         // فعلا همه پرداخت‌های مرتبط با این پیش‌فاکتور را به‌عنوان پرداخت مشتری می‌گیریم
         return $this->hasMany(Payment::class, 'pre_invoice_id');
     }
+
+    public function confirmedPaidAmount(): float
+    {
+        return (float) $this->payments()
+            ->where('status', 'confirmed')
+            ->sum(\DB::raw('COALESCE(paid_amount, amount)'));
+    }
+
+    /**
+    * مبلغی که برای فعال‌شدن مرحله بعد لازم است.
+    * اگر کل فاکتور ملاک است: total_amount + formal_extra (در صورت رسمی بودن).
+    */
+    public function requiredFinanceAmount(): float
+    {
+        $base = (float) $this->total_amount;
+
+        if ($this->type === 'formal' && $this->formal_extra) {
+            $base += (float) $this->formal_extra;
+        }
+
+        return $base;
+    }
+
+    /**
+    * آیا پرداخت لازم تایید شده است؟
+    * اگر فقط «پیش‌پرداخت» ملاک باشد، اینجا می‌توانی منطق دیگری قرار بدهی.
+    */
+    public function hasRequiredPaymentConfirmed(): bool
+    {
+        return $this->confirmedPaidAmount() >= $this->requiredFinanceAmount();
+    }
+
+    // public function paymentPlans()
+    // {
+    //     return $this->hasMany(InvoicePaymentPlan::class);
+    // }
+
+    public function paymentPlans()
+    {
+        return $this->hasMany(InvoicePaymentPlan::class, 'pre_invoice_id');
+    }
+
+
+    public function pendingFinancePaymentsAmount(): float
+    {
+        return (float) $this->payments()
+            ->where('status', 'pending')
+            ->sum(\DB::raw('COALESCE(paid_amount, amount)'));
+    }
+
+    public function hasAdvancePaidPendingFinance(): bool
+    {
+        // اینجا می‌توانی به‌جای total_amount، فیلد خاص پیش‌پرداخت را در نظر بگیری
+        $required = (float) ($this->required_advance_amount ?? 0);
+
+        return $required > 0
+            ? $this->pendingFinancePaymentsAmount() >= $required
+            : $this->pendingFinancePaymentsAmount() > 0;
+    }
+
+     // حداقل یک پرداخت تایید شده است؟
+    public function hasConfirmedPayments(): bool
+    {
+        return $this->payments()
+            ->where('status', 'confirmed')
+            ->exists();
+    }
+
+    // مجموع پرداخت‌های تایید شده
+    public function confirmedPaymentsSum(): float
+    {
+        return (float) $this->payments()
+            ->where('status', 'confirmed')
+            ->sum(DB::raw('COALESCE(paid_amount, amount)'));
+    }
+
+    // پرداخت‌های مرتبط برای نمایش در همان صفحه
+    public function paymentsForFinance()
+    {
+        return $this->payments()
+            ->orderByDesc('id')
+            ->get();
+    }
+
 
     public function plans()
     {

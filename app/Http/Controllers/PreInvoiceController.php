@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use Illuminate\Support\Facades\DB;
 
 
 
@@ -88,6 +89,9 @@ class PreInvoiceController extends Controller
         //     'purchasePreInvoices.buyer',
         // ]);
 
+        // $preInvoice = PreInvoice::with(['paymentPlans', 'payments', 'customer', 'items.product'])->findOrFail($id);
+
+
         $pre_invoice->load([
             'customer',
             'saleItems.product',
@@ -95,6 +99,7 @@ class PreInvoiceController extends Controller
             'purchasePreInvoices.buyer',
             'plans',
             'payments',
+            'paymentPlans'
         ]);
 
          // محاسبه جمع‌ها (سود و ... روی آیتم‌ها)
@@ -182,14 +187,42 @@ class PreInvoiceController extends Controller
 
 
 
+    // public function showPurchase(PreInvoice $preInvoice)
+    // {
+    //     abort_unless($preInvoice->direction === 'purchase', 404);
+
+    //     $preInvoice->load(['source','buyer','purchaseItems.product','salePreInvoice']);
+
+    //     return view('pre_invoices.purchase_show', compact('preInvoice'));
+    // }
+
+    
     public function showPurchase(PreInvoice $preInvoice)
     {
         abort_unless($preInvoice->direction === 'purchase', 404);
 
-        $preInvoice->load(['source','buyer','purchaseItems.product','salePreInvoice']);
+        $preInvoice->load([
+            'source',
+            'buyer',
+            'purchaseItems.product',
+            'salePreInvoice',
+        ]);
 
-        return view('pre_invoices.purchase_show', compact('preInvoice'));
+        // dd($preInvoice->purchaseItems->toArray());
+
+        // لیست منابع ممکن برای تغییر منبع
+        $sources = Source::orderBy('id')->get();
+
+        // لیست کاربران که می‌توانند کارشناس خرید باشند
+        $buyers = User::whereHas('roles', function ($q) {
+            $q->whereIn('roles.name', ['purchase_expert', 'purchase_manager']);
+        })->orderBy('users.id')->get();
+
+        // dd($buyers->toArray());
+
+        return view('pre_invoices.purchase_show', compact('preInvoice', 'sources', 'buyers'));
     }
+
 
 
     // public function showPurchase(PreInvoice $preInvoice)
@@ -647,6 +680,74 @@ class PreInvoiceController extends Controller
         return back()->with('success', 'این پیش‌فاکتور توسط مشتری رد شد.');
     }
 
+    
+    public function sendToFinance(PreInvoice $pre_invoice, Request $request)
+    {
+        // اگر لاگین و نقش‌ها مهم است:
+        // $this->authorize('send-to-finance', $pre_invoice);
+
+        // چک پیش‌شرط: مثلاً داشتن برنامه پرداخت و پیش‌پرداخت ثبت‌شده
+        if (! $pre_invoice->hasAdvancePaidPendingFinance()) {
+            return back()->with('error', 'پیش‌پرداخت لازم برای ارسال به مالی ثبت نشده است.');
+        }
+
+        // تغییر وضعیت پیش‌فاکتور به «در انتظار تایید مالی»
+        // $pre_invoice->status = 'WaitingFinance'; 
+        $pre_invoice->status = PreInvoiceStatus::AdvanceWaitingFinance;
+        $pre_invoice->save();
+
+        return back()->with('success', 'پیش‌فاکتور برای تایید پیش‌پرداخت به واحد مالی ارسال شد.');
+    }
+
+    
+    public function advanceConfirm(PreInvoice $pre_invoice)
+    {
+        // فقط اگر در مرحله انتظار تایید مالی پیش‌پرداخت است
+        if ($pre_invoice->status !== PreInvoiceStatus::AdvanceWaitingFinance) {
+            return back()->with('error', 'پیش‌فاکتور در مرحله تایید پیش‌پرداخت نیست.');
+        }
+
+        // باید حداقل یک پرداخت تایید شده باشد
+        if (! $pre_invoice->hasConfirmedPayments()) {
+            return back()->with('error', 'هنوز هیچ واریزی توسط مالی تایید نشده است.');
+        }
+
+        DB::transaction(function () use ($pre_invoice) {
+            // اینجا می‌توانی چک‌های تکمیلی هم انجام دهی (مثلاً مجموع حداقل X باشد)
+
+            $pre_invoice->status = PreInvoiceStatus::AdvanceFinanceApproved;
+            $pre_invoice->save();
+        });
+
+        return back()->with('success', 'پیش‌پرداخت این پیش‌فاکتور به صورت کلی تایید شد.');
+    }
+   
+    public function goToBuying(PreInvoice $pre_invoice)
+    {
+        // فقط اگر پیش‌پرداخت از نظر مالی به صورت کلی تایید شده است
+        if ($pre_invoice->status !== PreInvoiceStatus::AdvanceFinanceApproved) {
+            return back()->with('error', 'این پیش‌فاکتور هنوز در مرحله تایید نهایی پیش‌پرداخت نیست.');
+        }
+
+        DB::transaction(function () use ($pre_invoice) {
+            $pre_invoice->status = PreInvoiceStatus::WaitingPurchaseExecution; // یا هر استیت شروع خرید
+            $pre_invoice->save();
+        });
+
+        return back()->with('success', 'پیش‌فاکتور به مرحله خرید منتقل شد.');
+    }
+
+    public function startPurchasing(PreInvoice $pre_invoice)
+    {
+        if ($pre_invoice->status !== PreInvoiceStatus::AdvanceFinanceApproved) {
+            return back()->with('error', 'ابتدا باید پیش‌پرداخت به صورت مالی تایید شود.');
+        }
+
+        $pre_invoice->status = PreInvoiceStatus::WaitingPurchaseExecution;
+        $pre_invoice->save();
+
+        return back()->with('success', 'پیش‌فاکتور به مرحله ارجاع به کارشناسان خرید رفت.');
+    }
 
 
 }
