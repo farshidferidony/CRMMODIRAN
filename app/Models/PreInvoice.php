@@ -54,8 +54,25 @@ class PreInvoice extends Model
     //         ->whereHas('preInvoice', fn($q) => $q->where('direction', 'purchaseItems'));
     // }
 
-    public function customer() { return $this->belongsTo(Customer::class); }
+    // public function customer() { return $this->belongsTo(Customer::class); }
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
     public function source() { return $this->belongsTo(Source::class); }
+
+    public function company()
+    {
+        return $this->hasOneThrough(
+            Company::class,
+            CustomerLink::class,
+            'customer_id',   // foreign key on customer_links
+            'id',            // primary key on companies
+            'id',            // local key on customers
+            'linkable_id'    // foreign key on customer_links pointing to companies
+        )->where('customer_links.linkable_type', Company::class);
+    }
+
 
     protected static $logAttributes = [
         'direction',
@@ -354,6 +371,38 @@ class PreInvoice extends Model
             && $this->hasPaymentPlan()
             && $this->allPurchaseApprovedByFinance(); // از قبل داریم
     }
+
+    public function isPurchaseFullyCompleted(): bool
+    {
+        // اگر هیچ پیش‌فاکتور خرید مرتبطی نیست، خرید تکمیل نشده
+        if (! $this->purchasePreInvoices->count()) {
+            return false;
+        }
+
+        foreach ($this->purchasePreInvoices as $ppi) {
+            // باید پیش‌فاکتور خرید تایید مالی شده و آیتم‌ها هم خرید شده باشند
+            $totalItems     = $ppi->purchaseItems->count();
+            $purchasedItems = $ppi->purchaseItems
+                ->where('purchase_status', 'purchased')
+                ->count();
+
+            if (
+                $totalItems === 0 ||
+                $purchasedItems !== $totalItems ||
+                ! $ppi->supplier_payment_approved
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function transports()
+    {
+        return $this->hasMany(Transport::class, 'pre_invoice_id');
+    }
+
 
 
 

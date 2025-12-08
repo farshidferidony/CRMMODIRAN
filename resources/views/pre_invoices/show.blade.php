@@ -45,27 +45,7 @@
             </form>
         @endif
 
-        {{-- خلاصه وضعیت پیش‌فاکتورهای خرید --}}
-        @if($pre_invoice->hasActivePurchasePreInvoices())
-            <div class="mt-2">
-                <strong>پیش‌فاکتورهای خرید مرتبط (در حال بررسی):</strong>
-                @foreach($pre_invoice->purchasePreInvoices as $ppi)
-                    @if(!in_array($ppi->status, [
-                        \App\Enums\PreInvoiceStatus::FinancePurchaseApproved,
-                        \App\Enums\PreInvoiceStatus::FinancePurchaseRejected,
-                    ]))
-                        <div class="small">
-                            #{{ $ppi->id }} - {{ $ppi->source?->name }} / {{ $ppi->buyer?->name }}
-                            - وضعیت: {{ $ppi->status_label ?? $ppi->status }}
-                            <a href="{{ route('purchase-pre-invoices.show', $ppi) }}"
-                            class="btn btn-link btn-sm p-0 align-baseline">
-                                مشاهده / اقدام
-                            </a>
-                        </div>
-                    @endif
-                @endforeach
-            </div>
-        @endif
+        
 
 
 
@@ -455,52 +435,157 @@
             </button>
         </form>
     @endif
+    
 
-    @if(in_array($pre_invoice->status, [
+    @if($pre_invoice->purchasePreInvoices->count() && 
+    in_array($pre_invoice->status, [
         PreInvoiceStatus::WaitingPurchaseExecution,
         PreInvoiceStatus::Purchasing,
-    ]))
+    ])
+    )
+
+        @php
+            $allPurchasesCompleted = true;
+        @endphp
+
         <div class="alert alert-info mt-3">
             پیش‌فاکتور در حال خرید توسط تیم خرید است. لطفاً تا تکمیل خرید صبر کنید.
         </div>
-    @endif
 
-    {{-- وقتی در حال اجرای خرید هست --}}
-    @if(in_array($pre_invoice->status, [
-        PreInvoiceStatus::WaitingPurchaseExecution,
-    ]))
-        <div class="alert alert-info">
-            خرید این پیش‌فاکتور در حال انجام توسط تیم خرید است.
-        </div>
-
-        @if($pre_invoice->purchasePreInvoices->count())
-            <ul>
+        <div class="mt-2">
+            <strong>پیش‌فاکتورهای خرید مرتبط:</strong>
+            <ul class="mt-2">
                 @foreach($pre_invoice->purchasePreInvoices as $ppi)
-                    <li>
+                    @php
+                        // وضعیت آیتم‌های این پیش‌فاکتور خرید
+                        $totalItems        = $ppi->purchaseItems->count();
+                        $purchasedItems    = $ppi->purchaseItems
+                            ->where('purchase_status', 'purchased')->count();
+                        $hasFinalWeight    = $ppi->purchaseItems
+                            ->whereNotNull('final_purchase_weight')->count() === $totalItems && $totalItems > 0;
+
+                         if (
+                            $totalItems === 0 ||
+                            $purchasedItems !== $totalItems ||
+                            ! $ppi->supplier_payment_approved
+                        ) {
+                            $allPurchasesCompleted = false;
+                        }
+
+                        // تعیین برچسب وضعیت نمایشی
+                        if ($totalItems > 0 && $purchasedItems === $totalItems && $ppi->supplier_payment_approved) {
+                            $ppiStatusLabel = 'خرید نهایی شده (آماده بازگشت به فروش)';
+                        } elseif ($totalItems > 0 && $purchasedItems === $totalItems) {
+                            $ppiStatusLabel = 'خرید آیتم‌ها تکمیل شده (در انتظار تایید پرداخت مالی)';
+                        } elseif ($ppi->status === PreInvoiceStatus::WaitingPurchase) {
+                            $ppiStatusLabel = 'در انتظار اجرای خرید';
+                        } elseif ($ppi->status === PreInvoiceStatus::PricedByPurchase) {
+                            $ppiStatusLabel = 'در حال قیمت‌گذاری توسط خرید';
+                        } elseif ($ppi->status === PreInvoiceStatus::WaitingFinancePurchase) {
+                            $ppiStatusLabel = 'در انتظار تایید مالی قبل از خرید';
+                        } elseif ($ppi->status === PreInvoiceStatus::FinancePurchaseApproved) {
+                            $ppiStatusLabel = 'مالی تایید کرده (خرید در حال انجام)';
+                        } elseif ($ppi->status === PreInvoiceStatus::FinancePurchaseRejected) {
+                            $ppiStatusLabel = 'رد شده توسط مالی';
+                        } else {
+                            $ppiStatusLabel = $ppi->status_label ?? $ppi->status;
+                        }
+                        
+                        $sourceName = null;
+
+                        if (!empty($ppi->source?->name)) {
+                            $sourceName = $ppi->source->name;
+                        } elseif (!empty($ppi->source?->last_name) || !empty($ppi->source?->first_name)) {
+                            $sourceName = trim(($ppi->source->first_name ?? '') . ' ' . ($ppi->source->last_name ?? ''));
+                        } else {
+                            $sourceName = '-';
+                        }
+                    @endphp
+
+                    
+
+
+                    <li class="small mb-1">
                         پیش‌فاکتور خرید #{{ $ppi->id }}
-                        - منبع: {{ $ppi->source?->name }}
-                        - وضعیت: {{ $ppi->status }}
-                        <a href="{{ route('purchase_pre_invoices.purchase_show', $ppi->id) }}" target="_blank">
-                            مشاهده جزئیات خرید
+                        – منبع: {{ $sourceName }}
+                        – کارشناس خرید: {{ $ppi->buyer?->name ?? '-' }}
+                        – وضعیت: {{ $ppiStatusLabel }}
+
+                        {{-- اگر همه آیتم‌ها خرید شده‌اند، یک تگ اضافه هم نشان بده --}}
+                        @if($totalItems > 0 && $purchasedItems === $totalItems)
+                            <span class="badge bg-success ms-1">
+                                همه آیتم‌ها خریداری شده‌اند
+                            </span>
+                            @if($hasFinalWeight)
+                                <span class="badge bg-primary ms-1">
+                                    وزن نهایی همه آیتم‌ها ثبت شده است
+                                </span>
+                            @endif
+                        @endif
+
+                        <a href="{{ route('purchase_pre_invoices.purchase_show', $ppi->id) }}"
+                        target="_blank"
+                        class="btn btn-link btn-sm p-0 align-baseline">
+                            مشاهده / اقدام
                         </a>
                     </li>
                 @endforeach
             </ul>
-        @endif
+        </div>
+            @php
+                // dd($pre_invoice->status);
+            @endphp
+            @if($allPurchasesCompleted &&
+                in_array($pre_invoice->status, [
+                    PreInvoiceStatus::WaitingPurchaseExecution,
+                    PreInvoiceStatus::Purchasing,
+                    PreInvoiceStatus::PurchaseCompleted,
+                ]))
+                <form method="POST"
+                    action="{{ route('pre_invoices.approve_full_purchase', $pre_invoice->id) }}"
+                    class="mt-2">
+                    @csrf
+                    <button class="btn btn-sm btn-success">
+                        تایید خرید کل پیش‌فاکتور و ارجاع به فروش
+                    </button>
+                </form>
+            @endif
+            
     @endif
 
-    {{-- وقتی خرید کامل شد و نوبت فرم حمل است --}}
+    
+    {{-- ۱. دکمه تایید کارشناس فروش بعد از خرید --}}
     @if($pre_invoice->status === PreInvoiceStatus::PurchaseCompleted)
-        <div class="alert alert-success">
-            خرید این پیش‌فاکتور کامل شده است؛ می‌توانید فرم حمل را ثبت کنید.
-        </div>
-
-        <form method="GET" action="{{ route('transports.create_from_pre_invoice', $preInvoice->id) }}">
-            <button class="btn btn-primary">
-                ایجاد فرم حمل
+        <form method="POST"
+            action="{{ route('pre_invoices.post_purchase_sales_approve', $pre_invoice->id) }}"
+            class="mt-3">
+            @csrf
+            <button class="btn btn-sm btn-primary">
+                تایید شرایط توسط کارشناس فروش
             </button>
         </form>
     @endif
+
+    {{-- ۲. دکمه درخواست فرم حمل --}}
+    @if($pre_invoice->status === PreInvoiceStatus::PostPurchaseSalesApproved)
+        <form method="POST"
+            action="{{ route('pre_invoices.request_shipping', $pre_invoice->id) }}"
+            class="mt-2">
+            @csrf
+            <button class="btn btn-sm btn-success">
+                 درخواست فرم حمل
+            </button>
+        </form>
+    @endif
+
+    @if($pre_invoice->status === \App\Enums\PreInvoiceStatus::ShippingRequested)
+        <a href="{{ route('pre_invoices.transports.index', $pre_invoice->id) }}"
+        class="btn btn-sm btn-outline-primary mt-2">
+            فرم‌های حمل این پیش‌فاکتور / درخواست فرم حمل
+        </a>
+    @endif
+
+
 
 
 
@@ -524,6 +609,7 @@
                 <th>قیمت فروش (توسط فروش)</th>
                 <th>حاشیه سود (%)</th>
                 <th>مبلغ نهایی (بر اساس فروش)</th>
+                <th>وضعیت خرید</th>
             </tr>
             </thead>
             <tbody>
@@ -532,7 +618,24 @@
                     $buy  = $item->purchase_unit_price;
                     $sale = $item->sale_unit_price ?? $item->unit_price;
                     $total = $item->total;
+                    
+                    // آیا این آیتم در پیش‌فاکتورهای خرید مرتبط، خرید شده است؟
+                    $purchased = false;
+                    $finalWeight = null;
+
+                    // dd($pre_invoice->purchasePreInvoices);
+
+                    foreach ($pre_invoice->purchasePreInvoices as $pPre) {
+                        foreach ($pPre->purchaseItems as $pItem) {
+                            
+                            if ($pItem->product_id == $item->product_id && $pItem->purchase_status === 'purchased') {
+                                $purchased  = true;
+                                $finalWeight = $pItem->final_purchase_weight;
+                            }
+                        }
+                    }
                 @endphp
+
                 <tr>
                     <td>{{ $item->id }}</td>
                     <td>{{ $item->product?->name }}</td>
@@ -551,6 +654,15 @@
                         @endif
                     </td>
                     <td>{{ $total ? number_format($total) : '-' }}</td>
+                    <td>
+                        @if($purchased)
+                            <span class="badge bg-success">
+                                خریداری شده (وزن: {{ $finalWeight }})
+                            </span>
+                        @else
+                            <span class="badge bg-warning">در حال خرید</span>
+                        @endif
+                    </td>
                 </tr>
             @endforeach
             </tbody>

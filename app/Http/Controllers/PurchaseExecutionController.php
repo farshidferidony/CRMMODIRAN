@@ -136,4 +136,48 @@ class PurchaseExecutionController extends Controller
 
         return back()->with('success', 'خرید این پیش‌فاکتور تایید و به فروش منتقل شد.');
     }
+
+    public function approveSupplierPayment(Request $request, PreInvoices $preInvoice)
+    {
+        $this->authorize('approveSupplierPayment', $preInvoice);
+
+        abort_unless($preInvoice->direction === 'purchase', 403);
+
+        // اینجا می‌توانی چک کنی که همه payment plan ها یا پرداخت‌های لازم ثبت شده‌اند
+        // و حداقل یک پرداخت تایید شده است.
+
+        $preInvoice->supplier_payment_approved = true;
+        $preInvoice->save();
+
+        return redirect()
+            ->route('purchase_pre_invoices.purchase_show', $preInvoice->id)
+            ->with('success', 'پرداخت به منبع تایید شد. حالا کارشناس خرید می‌تواند وزن نهایی را ثبت کند.');
+    }
+
+      public function finalizeItemPurchase(Request $request, PreInvoiceItem $item)
+    {
+        $preInvoice = $item->preInvoice;
+
+        // abort_unless($preInvoice && $preInvoice->direction === 'purchase', 403);
+        // abort_unless($preInvoice->supplier_payment_approved, 403);
+
+        // $this->authorize('finalizeItemPurchase', $item);
+
+        $data = $request->validate([
+            'final_purchase_weight' => ['required', 'numeric', 'min:0.001'],
+        ]);
+
+        $item->final_purchase_weight = $data['final_purchase_weight'];
+        $item->purchase_status       = 'purchased';
+        $item->save();
+
+        // اگر همه آیتم‌های این پیش‌فاکتور خرید شده باشند، وضعیت pre_invoice خرید را هم به purchased ببریم
+        if ($preInvoice->items()->where('purchase_status', '!=', 'purchased')->count() === 0) {
+            $preInvoice->purchase_status = 'purchased';
+            $preInvoice->save();
+        }
+
+        return back()->with('success', 'خرید این آیتم نهایی شد.');
+    }
+
 }

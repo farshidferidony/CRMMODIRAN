@@ -3,19 +3,36 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
+
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
 class Contact extends Model
 {
-    use  LogsActivity;  
-    protected $fillable = ['address_id', 'type', 'value'];
+    use  LogsActivity, SoftDeletes;  
+    protected $fillable = [
+        'address_id',
+        'type',
+        'value',
+    ];
+
+    public function address()
+    {
+        return $this->belongsTo(Address::class);
+    }
+
     public function customer() { return $this->belongsTo(Customer::class); }
 
-    public function address() { return $this->belongsTo(Address::class); }
 
 
-    protected static $logAttributes = ['address_id', 'type', 'value'];
+    protected static $logAttributes = [
+        'address_id',
+        'type',
+        'value',
+    ];
     protected static $logName = 'Contact';
 
     public function getActivitylogOptions(): LogOptions
@@ -25,5 +42,12 @@ class Contact extends Model
             ->useLogName('User');
     }
 
+    public function contactable()
+    {
+        return $this->morphTo();
+    }
+
 
 }
+
+    

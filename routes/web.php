@@ -27,6 +27,11 @@ use App\Models\ProductCategory;
 
 
 use App\Http\Controllers\PurchaseExecutionController;
+use App\Http\Controllers\PurchasePaymentPlanController;
+use App\Http\Controllers\TransportController;
+
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -117,9 +122,20 @@ Route::prefix('pre-invoices')->name('pre_invoices.')->group(function () {
     
     Route::post('{pre_invoice}/go-to-buying', [PreInvoiceController::class, 'goToBuying'])->name('go_to_buying');
 
+    Route::post('{preInvoice}/approve-full-purchase', [PreInvoiceController::class, 'approveFullPurchase'])->name('approve_full_purchase');
+
+    Route::post('{preInvoice}/post-purchase-sales-approve', [PreInvoiceController::class, 'postPurchaseSalesApprove'])->name('post_purchase_sales_approve');
+
+    Route::post('{preInvoice}/request-shipping', [PreInvoiceController::class, 'requestShipping'])->name('request_shipping');
+
+
+    // صفحه لیست فرم‌های حمل + دکمه ایجاد
+    Route::get('{preInvoice}/transports', [TransportController::class, 'index'])->name('transports.index');
+
+        // ساخت فرم حمل جدید از روی پیش‌فاکتور
+    Route::post('{preInvoice}/transports', [TransportController::class, 'store'])->name('transports.store');
+
 });
-
-
 
 
 
@@ -210,7 +226,23 @@ Route::prefix('purchase-pre-invoices')->name('purchase_pre_invoices.')->group(fu
     Route::post('items/{item}/finalize', [PurchaseExecutionController::class, 'finalizeItem'])->name('items.finalize');
 
     Route::post('{preInvoice}/approve-purchase', [PurchaseExecutionController::class, 'approvePurchase'])->name('approve_purchase');
+
+
+    // Route::post('{preInvoice}/payment-plans', [PurchasePaymentPlanController::class, 'store'])->name('payment_plans.store');
+
+
+    Route::post('items/{item}/finalize-purchase', [PurchaseExecutionController::class, 'finalizeItemPurchase'])->name('items.finalize_purchase');
+
+    Route::post('{preInvoice}/approve-supplier-payment', [PurchaseExecutionController::class, 'approveSupplierPayment'])->name('approve_supplier_payment');
 });
+
+
+// صفحه ویرایش خود فرم حمل (عمومی‌تر)
+Route::get('transports/{transport}/edit', [TransportController::class, 'edit'])
+    ->name('transports.edit');
+
+Route::put('transports/{transport}', [TransportController::class, 'update'])
+    ->name('transports.update');
 
 
 // User Roles

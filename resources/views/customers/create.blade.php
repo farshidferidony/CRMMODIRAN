@@ -1,3 +1,4 @@
+{{-- resources/views/customers/create.blade.php --}}
 @extends('layouts.master')
 @section('title')
 ثبت مشتری یا شرکت جدید
@@ -17,9 +18,9 @@
     <div class="col-lg-12">
         @if ($errors->any())
             <div class="alert alert-danger">
-                <ul>
+                <ul class="mb-0">
                     @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
+                        <li class="small">{{ $error }}</li>
                     @endforeach
                 </ul>
             </div>
@@ -27,6 +28,56 @@
 
         <form method="POST" action="{{ route('customers.store') }}" id="multiForm">
             @csrf
+
+            {{-- اطلاعات کلی مشتری (Customer) --}}
+            <div class="card mb-3">
+                <div class="card-body row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">نوع مشتری</label>
+                        <select name="customer_scope" id="customer_scope" class="form-select">
+                            @php $scope = old('customer_scope', 'domestic'); @endphp
+                            <option value="domestic" {{ $scope === 'domestic' ? 'selected' : '' }}>داخلی</option>
+                            <option value="foreign"  {{ $scope === 'foreign' ? 'selected' : '' }}>خارجی</option>
+                        </select>
+                        <small class="text-muted d-block mt-1">
+                            تعیین می‌کند کد ملی/پاسپورت و کد اقتصادی/شماره ثبت چگونه نمایش داده شوند.
+                        </small>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">نوع آشنایی با مشتری</label>
+                        <select name="source" class="form-select">
+                            <option value="">انتخاب کنید...</option>
+                            <option value="website"             {{ old('source') == 'website' ? 'selected' : '' }}>وبسایت</option>
+                            <option value="instagram"           {{ old('source') == 'instagram' ? 'selected' : '' }}>اینستاگرام</option>
+                            <option value="telegram"            {{ old('source') == 'telegram' ? 'selected' : '' }}>تلگرام</option>
+                            <option value="business_partners"   {{ old('source') == 'business_partners' ? 'selected' : '' }}>شرکای تجاری</option>
+                            <option value="phone_marketing"     {{ old('source') == 'phone_marketing' ? 'selected' : '' }}>بازاریابی تلفنی</option>
+                            <option value="from_employees"      {{ old('source') == 'from_employees' ? 'selected' : '' }}>از طریق کارمندان</option>
+                            <option value="from_customers"      {{ old('source') == 'from_customers' ? 'selected' : '' }}>از طریق مشتریان</option>
+                            <option value="word_of_mouth"       {{ old('source') == 'word_of_mouth' ? 'selected' : '' }}>بازاریابی دهان به دهان</option>
+                            <option value="public_relations"    {{ old('source') == 'public_relations' ? 'selected' : '' }}>روابط عمومی</option>
+                            <option value="seminar"             {{ old('source') == 'seminar' ? 'selected' : '' }}>سمینار</option>
+                            <option value="conference"          {{ old('source') == 'conference' ? 'selected' : '' }}>همایش</option>
+                            <option value="exhibition"          {{ old('source') == 'exhibition' ? 'selected' : '' }}>نمایشگاه</option>
+                            <option value="mass_advertising"    {{ old('source') == 'mass_advertising' ? 'selected' : '' }}>تبلیغات انبوه</option>
+                            <option value="email_marketing"     {{ old('source') == 'email_marketing' ? 'selected' : '' }}>ایمیل مارکتینگ</option>
+                            <option value="sms_marketing"       {{ old('source') == 'sms_marketing' ? 'selected' : '' }}>اس‌ام‌اس مارکتینگ</option>
+                            <option value="fax_marketing"       {{ old('source') == 'fax_marketing' ? 'selected' : '' }}>فکس مارکتینگ</option>
+                            <option value="direct_contact"      {{ old('source') == 'direct_contact' ? 'selected' : '' }}>ارتباط مستقیم</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 mb-3 d-flex align-items-center">
+                        <div class="form-check form-switch mt-4">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                   value="1" {{ old('is_active', 1) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="is_active">مشتری فعال است</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="addcustomer-accordion" class="custom-accordion">
 
                 {{-- شخص حقیقی --}}
@@ -52,7 +103,7 @@
                                     <label class="form-label">نام</label>
                                     <input type="text" name="person[first_name]"
                                            class="form-control @error('person.first_name') is-invalid @enderror"
-                                           value="{{ old('person.first_name') }}" required>
+                                           value="{{ old('person.first_name') }}">
                                     @error('person.first_name')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -61,7 +112,7 @@
                                     <label class="form-label">نام خانوادگی</label>
                                     <input type="text" name="person[last_name]"
                                            class="form-control @error('person.last_name') is-invalid @enderror"
-                                           value="{{ old('person.last_name') }}" required>
+                                           value="{{ old('person.last_name') }}">
                                     @error('person.last_name')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -77,35 +128,39 @@
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
+                            {{-- داخلی/خارجی: کد ملی یا پاسپورت --}}
+                            <div class="row" id="person_national_passport_row">
+                                <div class="col-md-4 mb-3 person-national-wrapper" style="{{ $scope === 'foreign' ? 'display:none;' : '' }}">
                                     <label class="form-label">کد ملی</label>
                                     <input type="text" name="person[national_code]"
-                                           class="form-control @error('person.national_code') is-invalid @enderror"
-                                           value="{{ old('person.national_code') }}" required>
+                                        class="form-control @error('person.national_code') is-invalid @enderror"
+                                        value="{{ old('person.national_code') }}">
                                     @error('person.national_code')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                <div class="col-md-4 mb-3">
+
+                                <div class="col-md-4 mb-3 person-passport-wrapper" style="{{ $scope === 'domestic' ? 'display:none;' : '' }}">
                                     <label class="form-label">شماره پاسپورت</label>
                                     <input type="text" name="person[passport_number]"
-                                           class="form-control @error('person.passport_number') is-invalid @enderror"
-                                           value="{{ old('person.passport_number') }}">
+                                        class="form-control @error('person.passport_number') is-invalid @enderror"
+                                        value="{{ old('person.passport_number') }}">
                                     @error('person.passport_number')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
+
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label">ایمیل</label>
                                     <input type="email" name="person[email]"
-                                           class="form-control @error('person.email') is-invalid @enderror"
-                                           value="{{ old('person.email') }}">
+                                        class="form-control @error('person.email') is-invalid @enderror"
+                                        value="{{ old('person.email') }}">
                                     @error('person.email')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
                             </div>
+
 
                             {{-- آدرس و تماس شخص --}}
                             <h5 class="mt-4">آدرس‌ها و شماره تماس شخص</h5>
@@ -143,13 +198,14 @@
                             </div>
                             <div class="flex-grow-1">
                                 <h5 class="font-size-16 mb-1">مشخصات شرکت حقوقی</h5>
-                                <p class="text-muted mb-0">مشخصات و تماس شرکت</p>
+                                <p class="text-muted mb-0">مشخصات و تماس شرکت + اتصال افراد قبلی</p>
                             </div>
                             <div class="flex-shrink-0">
                                 <i class="mdi mdi-chevron-up accor-down-icon font-size-24"></i>
                             </div>
                         </div>
                     </a>
+
                     <div id="company-collapse" class="collapse" data-bs-parent="#addcustomer-accordion">
                         <div class="p-4 border-top">
                             <div class="mb-3">
@@ -161,25 +217,29 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">کد اقتصادی</label>
-                                    <input type="text" name="company[economic_code]"
-                                           class="form-control @error('company.economic_code') is-invalid @enderror"
-                                           value="{{ old('company.economic_code') }}">
-                                    @error('company.economic_code')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">شماره ثبت</label>
-                                    <input type="text" name="company[registration_number]"
-                                           class="form-control @error('company.registration_number') is-invalid @enderror"
-                                           value="{{ old('company.registration_number') }}">
-                                    @error('company.registration_number')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
+
+                            {{-- داخلی/خارجی: کد اقتصادی و شماره ثبت فقط برای داخلی --}}
+                            <div class="row" id="company_codes_row">
+                                @if($scope === 'domestic')
+                                    <div class="col-md-4 mb-3 company-economic-wrapper">
+                                        <label class="form-label">کد اقتصادی</label>
+                                        <input type="text" name="company[economic_code]"
+                                               class="form-control @error('company.economic_code') is-invalid @enderror"
+                                               value="{{ old('company.economic_code') }}">
+                                        @error('company.economic_code')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div class="col-md-4 mb-3 company-registration-wrapper">
+                                        <label class="form-label">شماره ثبت</label>
+                                        <input type="text" name="company[registration_number]"
+                                               class="form-control @error('company.registration_number') is-invalid @enderror"
+                                               value="{{ old('company.registration_number') }}">
+                                        @error('company.registration_number')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                @endif
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label">ایمیل شرکت</label>
                                     <input type="email" name="company[email]"
@@ -214,10 +274,47 @@
                             <button type="button" class="btn btn-link" onclick="addAddressRow('company')">
                                 افزودن آدرس جدید برای شرکت
                             </button>
+
+                            {{-- افزودن افراد قبلی به این شرکت --}}
+                            <hr class="my-4">
+                            <h5 class="font-size-15 mb-3">افزودن افراد قبلاً ثبت‌شده به این شرکت</h5>
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    انتخاب افراد موجود (کارمندان قبلی)
+                                </label>
+                                <select name="existing_person_ids[]"
+                                        class="form-select"
+                                        multiple
+                                        data-toggle="select2">
+                                    @foreach($existingPersons as $p)
+                                        <option value="{{ $p->id }}"
+                                            {{ collect(old('existing_person_ids', []))->contains($p->id) ? 'selected' : '' }}>
+                                            {{ $p->first_name }} {{ $p->last_name }}
+                                            @if($p->national_code)
+                                                (کد ملی: {{ $p->national_code }})
+                                            @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted d-block mt-1">
+                                    می‌توانید چند شخص قبلی را به عنوان کارمند این شرکت مرتبط کنید.
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">نقش / رسته شغلی افراد انتخاب‌شده</label>
+                                <input type="text"
+                                       name="existing_person_role"
+                                       class="form-control"
+                                       value="{{ old('existing_person_role') }}"
+                                       placeholder="مثلاً: کارشناس خرید، کارشناس فروش، مدیر خرید و ...">
+                            </div>
+
                         </div>
                     </div>
                 </div>
-            </div>
+
+            </div>{{-- /accordion --}}
 
             <div class="row mt-4 mb-0">
                 <div class="col text-end">
@@ -233,7 +330,6 @@
     </div>
 </div>
 @endsection
-
 @section('script')
 <script src="{{ URL::asset('/assets/libs/select2/select2.min.js') }}"></script>
 
@@ -343,9 +439,7 @@ function addContactRow(prefix, addressIdx) {
     </div>`;
     contactsDiv.insertAdjacentHTML('beforeend', html);
 }
-</script>
 
-<script>
 document.addEventListener('change', function(e) {
     if (e.target.classList.contains('country-select')) {
         let select = e.target;
@@ -406,6 +500,56 @@ document.addEventListener('change', function(e) {
             citySelect.innerHTML = '<option value="">انتخاب کنید</option>';
         }
     }
+});
+
+// سوییچ داخلی/خارجی سمت فرانت برای نمایش کد ملی/پاسپورت و کد اقتصادی/ثبت
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('[data-toggle="select2"]').select2({ width: '100%', dir: 'rtl' });
+    }
+
+    const scopeSelect = document.getElementById('customer_scope');
+    if (!scopeSelect) return;
+
+    scopeSelect.addEventListener('change', function () {
+        const scope = this.value;
+        
+        console.log(scope);
+        // شخص: کد ملی/پاسپورت
+        const nationalWrapper = document.querySelector('.person-national-wrapper');
+        const passportWrapper = document.querySelector('.person-passport-wrapper');
+
+        if (nationalWrapper && passportWrapper) {
+            if (scope === 'domestic') {
+                nationalWrapper.style.display = 'block';
+                passportWrapper.style.display = 'none';
+                passportWrapper.querySelector('input').value = '';
+            } else {
+                nationalWrapper.style.display = 'none';
+                nationalWrapper.querySelector('input').value = '';
+                passportWrapper.style.display = 'block';
+            }
+        }
+
+        // شرکت: کد اقتصادی و شماره ثبت
+        const economicWrapper     = document.querySelector('.company-economic-wrapper');
+        const registrationWrapper = document.querySelector('.company-registration-wrapper');
+
+        if (economicWrapper && registrationWrapper) {
+            if (scope === 'domestic') {
+                economicWrapper.style.display = 'block';
+                registrationWrapper.style.display = 'block';
+            } else {
+                economicWrapper.style.display = 'none';
+                registrationWrapper.style.display = 'none';
+                economicWrapper.querySelector('input').value = '';
+                registrationWrapper.querySelector('input').value = '';
+            }
+        }
+    });
+
+    // تریگر اولیه برای هم‌راستایی با مقدار old()
+    scopeSelect.dispatchEvent(new Event('change'));
 });
 </script>
 @endsection

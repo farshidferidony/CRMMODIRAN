@@ -37,10 +37,17 @@ class PreInvoiceController extends Controller
 
     public function index()
     {
-        $preInvoices = PreInvoice::with('customer')
+        // $preInvoices = PreInvoice::with('customer')
+        //     ->where('direction', 'sale')
+        //     ->orderByDesc('id')
+        //     ->paginate(30);
+
+        $preInvoices = PreInvoice::with(['customer.companies'])
             ->where('direction', 'sale')
             ->orderByDesc('id')
-            ->paginate(30);
+            ->latest()
+            ->paginate(20);
+
 
         return view('pre_invoices.index', compact('preInvoices'));
     }
@@ -99,7 +106,9 @@ class PreInvoiceController extends Controller
             'purchasePreInvoices.buyer',
             'plans',
             'payments',
-            'paymentPlans'
+            'paymentPlans',
+            'purchasePreInvoices.items',
+            'purchasePreInvoices.purchaseItems',
         ]);
 
          // محاسبه جمع‌ها (سود و ... روی آیتم‌ها)
@@ -206,7 +215,9 @@ class PreInvoiceController extends Controller
             'buyer',
             'purchaseItems.product',
             'salePreInvoice',
+            'paymentPlans', // پلن‌های پرداخت به منبع
         ]);
+        
 
         // dd($preInvoice->purchaseItems->toArray());
 
@@ -690,6 +701,26 @@ class PreInvoiceController extends Controller
         if (! $pre_invoice->hasAdvancePaidPendingFinance()) {
             return back()->with('error', 'پیش‌پرداخت لازم برای ارسال به مالی ثبت نشده است.');
         }
+        // dd($pre_invoice->id);
+
+        // تغییر وضعیت پیش‌فاکتور به «در انتظار تایید مالی»
+        // $pre_invoice->status = 'WaitingFinance'; 
+        $pre_invoice->status = PreInvoiceStatus::AdvanceWaitingFinance;
+        $pre_invoice->save();
+
+        return back()->with('success', 'پیش‌فاکتور برای تایید پیش‌پرداخت به واحد مالی ارسال شد.');
+    }
+
+    public function sendToFinanceForBuy(PreInvoice $pre_invoice, Request $request)
+    {
+        // اگر لاگین و نقش‌ها مهم است:
+        // $this->authorize('send-to-finance', $pre_invoice);
+
+        // چک پیش‌شرط: مثلاً داشتن برنامه پرداخت و پیش‌پرداخت ثبت‌شده
+        if (! $pre_invoice->hasAdvancePaidPendingFinance()) {
+            return back()->with('error', 'پیش‌پرداخت لازم برای ارسال به مالی ثبت نشده است.');
+        }
+        // dd($pre_invoice->id);
 
         // تغییر وضعیت پیش‌فاکتور به «در انتظار تایید مالی»
         // $pre_invoice->status = 'WaitingFinance'; 
@@ -737,6 +768,42 @@ class PreInvoiceController extends Controller
         return back()->with('success', 'پیش‌فاکتور به مرحله خرید منتقل شد.');
     }
 
+    public function goToSelling(PreInvoices $purchasePreInvoice)
+    {
+        // 1) این پیش‌فاکتور باید خرید باشد
+        abort_unless($purchasePreInvoice->direction === 'purchase', 404);
+
+        // 2) چک کن برنامه پرداخت کامل و تایید شده است (به طراحی خودت بستگی دارد)
+        // مثلا همه plans این pre_invoice یا حداقل یکی status = 'confirmed' داشته باشد
+
+        // 3) وزن/قیمت آیتم‌ها در خرید نهایی شده باشد
+        foreach ($purchasePreInvoice->items as $item) {
+            // اینجا می‌توانی چک کنی purchase_unit_price و weight نهایی ست شده‌اند
+        }
+
+        // 4) لینک به پیش‌فاکتور فروش
+        $salePre = $purchasePreInvoice->salePreInvoice;
+        if ($salePre) {
+            // اگر همه آیتم‌های این فروش خریدشان نهایی شده:
+            $allBought = $salePre->items->every(function ($item) {
+                return $item->chosenPurchaseAssignment && $item->purchase_unit_price;
+            });
+
+            if ($allBought) {
+                // استیت فروش را ببر مرحله بعد
+                $salePre->status = 'buying'; // یا 'approvedsalespurchase' / هر چیزی که مرحله بعد توست
+                $salePre->save();
+            }
+        }
+
+        // خود پیش‌فاکتور خرید را هم مثلا:
+        $purchasePreInvoice->status = 'bought';
+        $purchasePreInvoice->save();
+
+        return back()->with('success', 'خرید تایید و فروش به مرحله بعد منتقل شد.');
+    }
+
+
     public function startPurchasing(PreInvoice $pre_invoice)
     {
         if ($pre_invoice->status !== PreInvoiceStatus::AdvanceFinanceApproved) {
@@ -747,6 +814,69 @@ class PreInvoiceController extends Controller
         $pre_invoice->save();
 
         return back()->with('success', 'پیش‌فاکتور به مرحله ارجاع به کارشناسان خرید رفت.');
+    }
+
+    public function approveFullPurchase(PreInvoice $preInvoice)
+    {
+        // فقط روی پیش‌فاکتور فروش
+        // abort_unless($preInvoice->direction === 'sale', 404);
+
+        // چک پرمیشن مدیر خرید
+        // $this->authorize('approveFullPurchase', $preInvoice);
+
+        // باید همه خریدها واقعاً تکمیل شده باشند
+        $preInvoice->load('purchasePreInvoices.purchaseItems');
+
+        if (! $preInvoice->isPurchaseFullyCompleted()) {
+            return back()->with('error', 'هنوز خرید همه آیتم‌ها تکمیل نشده است.');
+        }
+
+        // ست کردن وضعیت: خرید تکمیل شده
+        $preInvoice->status = PreInvoiceStatus::PurchaseCompleted;
+
+        // به محض تایید مدیر خرید، می‌خواهی به مرحله قیمت‌گذاری فروش برود
+        // یا مستقیم به PricedBySales یا WaitingSalesApproval، طبق بیزینس‌لاگیک:
+        // مثال: بعد از تکمیل خرید، مسئول فروش باید قیمت نهایی را بزند:
+        // $preInvoice->status = PreInvoiceStatus::PricedBySales->value;
+
+        $preInvoice->save();
+
+        return back()->with('success', 'خرید کل پیش‌فاکتور توسط مدیر خرید تایید شد و به فروش ارجاع گردید.');
+    }
+
+    
+    public function postPurchaseSalesApprove(PreInvoice $preInvoice)
+    {
+        // abort_unless($preInvoice->direction === 'sale', 404);
+
+        // $this->authorize('postPurchaseSalesApprove', $preInvoice);
+
+        // // می‌توانی در صورت نیاز چند ولیدیشن اضافی هم انجام دهی
+        // // مثلا: همه خریدها کامل باشند
+        // $preInvoice->load('purchasePreInvoices.purchaseItems');
+
+        if (! $preInvoice->isPurchaseFullyCompleted()) {
+            return back()->with('error', 'خرید همه آیتم‌ها هنوز تکمیل نشده است.');
+        }
+
+        $preInvoice->status = PreInvoiceStatus::PostPurchaseSalesApproved;
+        $preInvoice->save();
+
+        return back()->with('success', 'شرایط توسط کارشناس فروش تایید شد. حالا می‌توانید درخواست فرم حمل ثبت کنید.');
+    }
+
+    public function requestShipping(PreInvoice $preInvoice)
+    {
+        // abort_unless($preInvoice->direction === 'sale', 404);
+
+        // $this->authorize('requestShipping', $preInvoice);
+
+        // اگر فرم/اطلاعات اضافی لازم داری (مثلاً توضیح)، اینجا validate کن
+
+        $preInvoice->status = PreInvoiceStatus::ShippingRequested;
+        $preInvoice->save();
+
+        return back()->with('success', 'درخواست فرم حمل ثبت شد و برای واحد حمل/لجستیک ارسال گردید.');
     }
 
 

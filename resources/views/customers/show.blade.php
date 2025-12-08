@@ -1,6 +1,7 @@
 @extends('layouts.master')
+
 @section('title')
-@lang('translation.Profile')
+    @lang('translation.Profile')
 @endsection
 
 @section('content')
@@ -8,6 +9,11 @@
     @slot('pagetitle') Contacts @endslot
     @slot('title') Profile @endslot
 @endcomponent
+
+@php
+    $person  = $customer->persons->first();
+    $company = $customer->companies->first();
+@endphp
 
 <div class="row mb-4">
     <div class="col-xl-4">
@@ -20,45 +26,60 @@
                         </a>
                         <div class="dropdown-menu dropdown-menu-end">
                             <a class="dropdown-item" href="{{ route('customers.edit', $customer->id) }}">ویرایش</a>
-                            <a class="dropdown-item" href="#">حذف</a>
+                            {{-- حذف را بعداً پیاده‌سازی می‌کنی --}}
                         </div>
                     </div>
                     <div class="clearfix"></div>
+
                     <div>
-                        <img src="{{ URL::asset('/assets/images/users/avatar-4.jpg') }}" alt="" class="avatar-lg rounded-circle img-thumbnail">
+                        <img src="{{ URL::asset('/assets/images/users/avatar-4.jpg') }}"
+                             alt="" class="avatar-lg rounded-circle img-thumbnail">
                     </div>
 
-                    {{-- اطلاعات شرکت اگر وجود داشت --}}
-                    @if($customer->company)
-                        <h5 class="mt-3 mb-1">{{ $customer->company->name }}</h5>
+                    {{-- اطلاعات شرکت (اگر شرکت لینک شده‌ای وجود دارد) --}}
+                    @if($company)
+                        <h5 class="mt-3 mb-1">{{ $company->name }}</h5>
                         <p class="text-muted">مشتری حقوقی</p>
                         <div class="mb-2 mt-2">
                             <span class="badge bg-info">شرکت</span>
                         </div>
+
                         <div class="text-start mt-3">
                             <h6>اطلاعات شرکت</h6>
                             <ul class="list-unstyled mb-3">
-                                <li><strong>نام شرکت:</strong> {{ $customer->company->name }}</li>
-                                <li><strong>کد اقتصادی:</strong> {{ $customer->company->economic_code }}</li>
-                                <li><strong>شماره ثبت:</strong> {{ $customer->company->registration_number }}</li>
-                                <li><strong>ایمیل:</strong> {{ $customer->company->email }}</li>
+                                <li><strong>نام شرکت:</strong> {{ $company->name }}</li>
+                                @if($company->economic_code)
+                                    <li><strong>کد اقتصادی:</strong> {{ $company->economic_code }}</li>
+                                @endif
+                                @if($company->registration_number)
+                                    <li><strong>شماره ثبت:</strong> {{ $company->registration_number }}</li>
+                                @endif
+                                @if($company->email)
+                                    <li><strong>ایمیل:</strong> {{ $company->email }}</li>
+                                @endif
                             </ul>
                         </div>
 
-                        @if($customer->company->addresses->count())
+                        @if($company->addresses->count())
                             <hr>
                             <div class="text-start mt-2">
                                 <h6>آدرس‌های شرکت:</h6>
-                                @foreach($customer->company->addresses as $address)
+                                @foreach($company->addresses as $address)
                                     @php
                                         $countryName  = $address->country
-                                            ? (app()->getLocale() == 'fa' ? $address->country->name_fa : $address->country->name_en)
+                                            ? (app()->getLocale() == 'fa'
+                                                ? $address->country->name_fa
+                                                : $address->country->name_en)
                                             : '';
                                         $provinceName = $address->province
-                                            ? (app()->getLocale() == 'fa' ? $address->province->name_fa : $address->province->name_en)
+                                            ? (app()->getLocale() == 'fa'
+                                                ? $address->province->name_fa
+                                                : $address->province->name_en)
                                             : '';
                                         $cityName     = $address->city
-                                            ? (app()->getLocale() == 'fa' ? $address->city->name_fa : $address->city->name_en)
+                                            ? (app()->getLocale() == 'fa'
+                                                ? $address->city->name_fa
+                                                : $address->city->name_en)
                                             : '';
                                     @endphp
                                     <div class="mb-1">
@@ -80,64 +101,80 @@
                                 @endforeach
                             </div>
                         @endif
+
                         <hr>
                     @endif
 
-                    {{-- اطلاعات شخص --}}
-                    @if($customer->first_name || $customer->last_name)
-                        <h5 class="mt-3 mb-1">{{ $customer->first_name }} {{ $customer->last_name }}</h5>
+                    {{-- اطلاعات شخص (اگر شخص لینک شده‌ای وجود دارد) --}}
+                    @if($person)
+                        <h5 class="mt-3 mb-1">
+                            {{ trim(($person->first_name ?? '').' '.($person->last_name ?? '')) }}
+                        </h5>
                         <p class="text-muted">مشتری حقیقی</p>
+
                         <div class="text-start mt-3">
                             <h6>اطلاعات شخصی</h6>
                             <ul class="list-unstyled mb-3">
-                                @if($customer->passport_number)
-                                    <li><strong>شماره پاسپورت:</strong> {{ $customer->passport_number }}</li>
+                                @if($person->passport_number)
+                                    <li><strong>شماره پاسپورت:</strong> {{ $person->passport_number }}</li>
                                 @endif
-                                @if($customer->national_code)
-                                    <li><strong>کد ملی:</strong> {{ $customer->national_code }}</li>
+                                @if($person->national_code)
+                                    <li><strong>کد ملی:</strong> {{ $person->national_code }}</li>
                                 @endif
-                                @if($customer->birthdate)
-                                    <li><strong>تاریخ تولد:</strong> {{ $customer->birthdate }}</li>
+                                @if($person->birthdate)
+                                    <li><strong>تاریخ تولد:</strong> {{ $person->birthdate }}</li>
                                 @endif
-                                <li><strong>ایمیل:</strong> {{ $customer->email }}</li>
+                                @if($person->email)
+                                    <li><strong>ایمیل:</strong> {{ $person->email }}</li>
+                                @endif
                             </ul>
                         </div>
                     @endif
 
-                    {{-- آدرس و شماره تماس شخص --}}
-                    @php
-                        $mobiles = [];
-                        foreach($customer->addresses as $address) {
-                            foreach($address->contacts as $contact) {
-                                if($contact->type == 'mobile' && $contact->value) {
-                                    $mobiles[] = $contact->value;
+                    {{-- شماره‌های موبایل شخص (از روی آدرس‌های شخص) --}}
+                    @if($person)
+                        @php
+                            $mobiles = [];
+                            foreach($person->addresses as $address) {
+                                foreach($address->contacts as $contact) {
+                                    if($contact->type == 'mobile' && $contact->value) {
+                                        $mobiles[] = $contact->value;
+                                    }
                                 }
                             }
-                        }
-                    @endphp
+                            $mobiles = array_unique($mobiles);
+                        @endphp
 
-                    @if(!empty($mobiles))
-                        <div class="text-start">
-                            <h6>شماره‌های موبایل:</h6>
-                            @foreach($mobiles as $mob)
-                                <div class="mb-1">{{ $mob }}</div>
-                            @endforeach
-                        </div>
+                        @if(!empty($mobiles))
+                            <div class="text-start">
+                                <h6>شماره‌های موبایل:</h6>
+                                @foreach($mobiles as $mob)
+                                    <div class="mb-1">{{ $mob }}</div>
+                                @endforeach
+                            </div>
+                        @endif
                     @endif
 
-                    @if($customer->addresses->count())
+                    {{-- آدرس‌های شخص --}}
+                    @if($person && $person->addresses->count())
                         <div class="text-start mt-2">
                             <h6>آدرس‌های شخص:</h6>
-                            @foreach($customer->addresses as $address)
+                            @foreach($person->addresses as $address)
                                 @php
                                     $countryName  = $address->country
-                                        ? (app()->getLocale() == 'fa' ? $address->country->name_fa : $address->country->name_en)
+                                        ? (app()->getLocale() == 'fa'
+                                            ? $address->country->name_fa
+                                            : $address->country->name_en)
                                         : '';
                                     $provinceName = $address->province
-                                        ? (app()->getLocale() == 'fa' ? $address->province->name_fa : $address->province->name_en)
+                                        ? (app()->getLocale() == 'fa'
+                                            ? $address->province->name_fa
+                                            : $address->province->name_en)
                                         : '';
                                     $cityName     = $address->city
-                                        ? (app()->getLocale() == 'fa' ? $address->city->name_fa : $address->city->name_en)
+                                        ? (app()->getLocale() == 'fa'
+                                            ? $address->city->name_fa
+                                            : $address->city->name_en)
                                         : '';
                                 @endphp
                                 <div class="mb-1">

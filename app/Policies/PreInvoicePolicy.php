@@ -2,6 +2,7 @@
 namespace App\Policies;
 
 
+use App\Models\PreInvoiceStatus;
 use App\Models\PreInvoice;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
@@ -105,4 +106,38 @@ class PreInvoicePolicy
         // اگر هرکدام از سر‌دسته‌های آیتم‌ها در لیست supervisedCategoryIds بود، اجازه بده
         return ! empty(array_intersect($itemCategoryIds, $supervisedCategoryIds));
     }
+
+    public function approveFullPurchase(User $user, PreInvoice $preInvoice): bool
+    {
+        return $user->hasRole('purchase_manager') // یا هر نقش دلخواه
+            && $preInvoice->status === PreInvoiceStatus::Purchasing;
+    }
+
+    public function salesPriceConfirm(User $user, PreInvoice $preInvoice): bool
+    {
+        return $user->hasRole('sales_expert')
+            && $preInvoice->status === PreInvoiceStatus::PurchaseCompleted;
+    }
+
+    public function sendToSalesManager(User $user, PreInvoice $preInvoice): bool
+    {
+        return $user->hasRole('sales_expert')
+            && $preInvoice->status === PreInvoiceStatus::PricedBySales;
+    }
+
+    public function postPurchaseSalesApprove(User $user, PreInvoice $preInvoice): bool
+    {
+        return $user->hasRole('sales_expert')
+            && $preInvoice->direction === 'sale'
+            && $preInvoice->status === PreInvoiceStatus::PurchaseCompleted;
+    }
+
+    public function requestShipping(User $user, PreInvoice $preInvoice): bool
+    {
+        return $user->hasRole('sales_expert')
+            && $preInvoice->direction === 'sale'
+            && $preInvoice->status === PreInvoiceStatus::PostPurchaseSalesApproved;
+    }
+
+
 }

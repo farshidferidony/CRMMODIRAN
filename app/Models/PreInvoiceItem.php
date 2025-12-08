@@ -26,8 +26,14 @@ class PreInvoiceItem extends Model
         'sale_unit_price',
         'purchase_unit_price',
         'profit_percent',
+        'final_purchase_weight',
+        'purchase_status',
     ];
-    public function preInvoice() { return $this->belongsTo(PreInvoice::class); }
+    // public function preInvoice() { return $this->belongsTo(PreInvoice::class); }
+    public function preInvoice()
+    {
+        return $this->belongsTo(PreInvoice::class, 'pre_invoice_id');
+    }
     public function product() { return $this->belongsTo(Product::class); }
 
     protected static $logAttributes = [
@@ -42,6 +48,8 @@ class PreInvoiceItem extends Model
         'sale_unit_price',
         'purchase_unit_price',
         'profit_percent',
+        'final_purchase_weight',
+        'purchase_status',
     ];
     protected static $logName = 'PreInvoiceItem';
 

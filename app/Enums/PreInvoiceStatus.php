@@ -41,6 +41,9 @@ enum PreInvoiceStatus:string
     case PurchaseCompleted        = 'purchase_completed';         // خرید کل آیتم‌ها تکمیل شده (۱۸–۲۰)
 
     // 21–29. حمل، تخلیه و تاییدهای فروش
+    // 21–22. تایید فروش بعد از خرید و درخواست حمل
+    case PostPurchaseSalesApproved = 'post_purchase_sales_approved'; // تایید کارشناس فروش بعد از تکمیل خرید
+    case ShippingRequested         = 'shipping_requested';           // درخواست فرم حمل توسط کارشناس فروش
     case ShippingPrepared         = 'shipping_prepared';          // فرم حمل تنظیم شده (۲۱–۲۲)
     case ShippingInProgress       = 'shipping_in_progress';       // در حال حمل / بارگیری (۲۳–۲۶)
     case Delivered                = 'delivered';                  // تخلیه و تایید شده (۲۷–۲۹)
@@ -83,6 +86,9 @@ enum PreInvoiceStatus:string
             self::WaitingPurchaseExecution => 'ارجاع به کارشناسان خرید',
             self::Purchasing               => 'خرید در حال انجام',
             self::PurchaseCompleted        => 'خرید تکمیل شده',
+            
+            self::PostPurchaseSalesApproved => 'تایید شرایط توسط کارشناس فروش (بعد از خرید)',
+            self::ShippingRequested         => 'درخواست فرم حمل',
             self::ShippingPrepared         => 'آماده حمل',
             self::ShippingInProgress       => 'در حال حمل',
             self::Invoiced                 => 'تبدیل به فاکتور',

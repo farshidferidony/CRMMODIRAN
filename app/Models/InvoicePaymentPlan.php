@@ -14,9 +14,9 @@ use Spatie\Activitylog\LogOptions;
 
 class InvoicePaymentPlan extends Model
 {
-    protected $fillable = ['invoice_id','amount','payment_type','scheduled_date','is_completed','note'];
+    protected $fillable = ['invoice_id','pre_invoice_id','amount','payment_type','scheduled_date','is_completed','note'];
 
-    protected static $logAttributes = ['invoice_id','amount','payment_type','scheduled_date','is_completed','note'];
+    protected static $logAttributes = ['invoice_id','pre_invoice_id','amount','payment_type','scheduled_date','is_completed','note'];
     protected static $logName = 'InvoicePaymentPlan';
 
     public function getActivitylogOptions(): LogOptions

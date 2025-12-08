@@ -10,12 +10,11 @@ class Address extends Model
 {
     use  LogsActivity;
     
-    protected $fillable = ['country_id', 'province_id', 'city_id', 'postal_code', 'address_detail', 'floor', 'unit'];
+    protected $fillable = ['addressable_id', 'addressable_type', 'country_id', 'province_id', 'city_id', 'postal_code', 'address_detail', 'floor', 'unit'];
     public function addressable() { return $this->morphTo(); }
-    public function contacts() { return $this->hasMany(Contact::class); }
 
 
-    protected static $logAttributes = ['country_id', 'province_id', 'city_id', 'postal_code', 'address_detail', 'floor', 'unit'];
+    protected static $logAttributes = ['addressable_id', 'addressable_type', 'country_id', 'province_id', 'city_id', 'postal_code', 'address_detail', 'floor', 'unit'];
     protected static $logName = 'Address';
 
     public function getActivitylogOptions(): LogOptions
@@ -38,6 +37,11 @@ class Address extends Model
     public function city()
     {
         return $this->belongsTo(CityFaEn::class, 'city_id');
+    }
+
+    public function contacts()
+    {
+        return $this->hasMany(Contact::class);
     }
 
 

@@ -1,105 +1,107 @@
 <div class="right-bar">
     <div data-simplebar class="h-100">
         <div class="rightbar-title d-flex align-items-center p-3">
-            <h5 class="m-0 me-2">میانبرها</h5>
+
+            <h5 class="m-0 me-2">Settings</h5>
+
             <a href="javascript:void(0);" class="right-bar-toggle ms-auto">
                 <i class="mdi mdi-close noti-icon"></i>
             </a>
         </div>
 
+        <!-- Settings -->
         <hr class="m-0" />
 
-        <div class="p-3">
-            {{-- بخش مشتریان --}}
-            <h6 class="mb-2">مشتریان</h6>
-            <div class="list-group mb-3">
-                <a href="{{ route('customers.index') }}" class="list-group-item list-group-item-action">
-                    لیست مشتریان
-                </a>
-                <a href="{{ route('customers.create') }}" class="list-group-item list-group-item-action">
-                    افزودن مشتری جدید
-                </a>
+        <div class="p-4">
+            <h6 class="mb-3">Layout</h6>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="layout" id="layout-vertical" value="vertical">
+                <label class="form-check-label" for="layout-vertical">Vertical</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="layout" id="layout-horizontal" value="horizontal">
+                <label class="form-check-label" for="layout-horizontal">Horizontal</label>
             </div>
 
-            {{-- بخش پیش‌فاکتور فروش --}}
-            <h6 class="mb-2">پیش‌فاکتور فروش</h6>
-            <div class="list-group mb-3">
-                <a href="{{ route('pre-invoices.index') }}" class="list-group-item list-group-item-action">
-                    لیست پیش‌فاکتورهای فروش
-                </a>
-                <a href="{{ route('pre-invoices.create') }}" class="list-group-item list-group-item-action">
-                    ثبت پیش‌فاکتور جدید
-                </a>
+            <h6 class="mt-4 mb-3 pt-2">Layout Mode</h6>
+
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="layout-mode" id="layout-mode-light" value="light">
+                <label class="form-check-label" for="layout-mode-light">Light</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="layout-mode" id="layout-mode-dark" value="dark">
+                <label class="form-check-label" for="layout-mode-dark">Dark</label>
             </div>
 
-            {{-- ماژول خرید / مدیر خرید --}}
-            <h6 class="mb-2">خرید</h6>
-            <div class="list-group mb-3">
-                <a href="{{ route('purchase_pre_invoices.index') }}" class="list-group-item list-group-item-action">
-                    پیش‌فاکتورهای خرید (ارجاع شده)
-                </a>
-                <a href="{{ route('buyer.assignments.index') }}" class="list-group-item list-group-item-action">
-                    وظایف کارشناسان خرید
-                </a>
-                <a href="{{ route('purchase-manager.pre-invoices.ready-for-sales') }}" class="list-group-item list-group-item-action">
-                    پیش‌فاکتورهای آماده ارسال به فروش
-                </a>
+            <h6 class="mt-4 mb-3 pt-2">Layout Width</h6>
+
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="layout-width" id="layout-width-fuild" value="fuild" onchange="document.body.setAttribute('data-layout-size', 'fluid')">
+                <label class="form-check-label" for="layout-width-fuild">Fluid</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="layout-width" id="layout-width-boxed" value="boxed" onchange="document.body.setAttribute('data-layout-size', 'boxed')">
+                <label class="form-check-label" for="layout-width-boxed">Boxed</label>
             </div>
 
-            {{-- ماژول فروش / مدیر فروش --}}
-            <h6 class="mb-2">فروش</h6>
-            <div class="list-group mb-3">
-                <a href="{{ route('sales-manager.pre-invoices.priced') }}" class="list-group-item list-group-item-action">
-                    پیش‌فاکتورهای قیمت‌گذاری شده توسط فروش
-                </a>
-                <a href="{{ route('sales-manager.pre-invoices.waiting-approval') }}" class="list-group-item list-group-item-action">
-                    پیش‌فاکتورهای در انتظار تایید مدیر فروش
-                </a>
+            <h6 class="mt-4 mb-3 pt-2">Topbar Color</h6>
+
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="topbar-color" id="topbar-color-light" value="light" onchange="document.body.setAttribute('data-topbar', 'light')">
+                <label class="form-check-label" for="topbar-color-light">Light</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="topbar-color" id="topbar-color-dark" value="dark" onchange="document.body.setAttribute('data-topbar', 'dark')">
+                <label class="form-check-label" for="topbar-color-dark">Dark</label>
             </div>
 
-            {{-- ماژول مالی --}}
-            <h6 class="mb-2">مالی</h6>
-            <div class="list-group mb-3">
-                <a href="{{ route('finance.pre-invoices.approved-by-sales') }}" class="list-group-item list-group-item-action">
-                    پیش‌فاکتورهای تایید شده برای صدور فاکتور
-                </a>
-                <a href="{{ route('invoices.index') }}" class="list-group-item list-group-item-action">
-                    لیست فاکتورها
-                </a>
-                <a href="{{ route('reports.invoices.debtors') }}" class="list-group-item list-group-item-action">
-                    گزارش بدهکاران
-                </a>
-                <a href="{{ route('reports.plans.due') }}" class="list-group-item list-group-item-action">
-                    اقساط سررسید شده
-                </a>
+            <h6 class="mt-4 mb-3 pt-2 sidebar-setting">Sidebar Size</h6>
+
+            <div class="form-check sidebar-setting">
+                <input class="form-check-input" type="radio" name="sidebar-size" id="sidebar-size-default" value="default" onchange="document.body.setAttribute('data-sidebar-size', 'lg')">
+                <label class="form-check-label" for="sidebar-size-default">Default</label>
+            </div>
+            <div class="form-check sidebar-setting">
+                <input class="form-check-input" type="radio" name="sidebar-size" id="sidebar-size-compact" value="compact" onchange="document.body.setAttribute('data-sidebar-size', 'small')">
+                <label class="form-check-label" for="sidebar-size-compact">Compact</label>
+            </div>
+            <div class="form-check sidebar-setting">
+                <input class="form-check-input" type="radio" name="sidebar-size" id="sidebar-size-small" value="small" onchange="document.body.setAttribute('data-sidebar-size', 'sm')">
+                <label class="form-check-label" for="sidebar-size-small">Small (Icon View)</label>
             </div>
 
-            {{-- محصولات و دسته‌بندی‌ها --}}
-            <h6 class="mb-2">محصولات</h6>
-            <div class="list-group mb-3">
-                <a href="{{ route('product-categories.index') }}" class="list-group-item list-group-item-action">
-                    دسته‌بندی محصولات
-                </a>
-                <a href="{{ route('products.index') }}" class="list-group-item list-group-item-action">
-                    لیست محصولات
-                </a>
-                <a href="{{ route('products.create') }}" class="list-group-item list-group-item-action">
-                    افزودن محصول جدید
-                </a>
+            <h6 class="mt-4 mb-3 pt-2 sidebar-setting">Sidebar Color</h6>
+
+            <div class="form-check sidebar-setting">
+                <input class="form-check-input" type="radio" name="sidebar-color" id="sidebar-color-light" value="light" onchange="document.body.setAttribute('data-sidebar', 'light')">
+                <label class="form-check-label" for="sidebar-color-light">Light</label>
+            </div>
+            <div class="form-check sidebar-setting">
+                <input class="form-check-input" type="radio" name="sidebar-color" id="sidebar-color-dark" value="dark" onchange="document.body.setAttribute('data-sidebar', 'dark')">
+                <label class="form-check-label" for="sidebar-color-dark">Dark</label>
+            </div>
+            <div class="form-check sidebar-setting">
+                <input class="form-check-input" type="radio" name="sidebar-color" id="sidebar-color-colored" value="colored" onchange="document.body.setAttribute('data-sidebar', 'colored')">
+                <label class="form-check-label" for="sidebar-color-colored">Colored</label>
             </div>
 
-            {{-- کاربران و نقش‌ها --}}
-            <h6 class="mb-2">کاربران</h6>
-            <div class="list-group mb-3">
-                <a href="{{ route('users.index') }}" class="list-group-item list-group-item-action">
-                    لیست کاربران
-                </a>
-                <a href="{{ route('users.create') }}" class="list-group-item list-group-item-action">
-                    ایجاد کاربر جدید
-                </a>
+            <h6 class="mt-4 mb-3 pt-2">Direction</h6>
+
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="layout-direction" id="layout-direction-ltr" value="ltr">
+                <label class="form-check-label" for="layout-direction-ltr">LTR</label>
             </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="layout-direction" id="layout-direction-rtl" value="rtl">
+                <label class="form-check-label" for="layout-direction-rtl">RTL</label>
+            </div>
+
         </div>
+
     </div> <!-- end slimscroll-menu-->
 </div>
+<!-- /Right-bar -->
 
+<!-- Right bar overlay-->
 <div class="rightbar-overlay"></div>

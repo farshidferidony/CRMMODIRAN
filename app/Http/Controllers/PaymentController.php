@@ -213,6 +213,7 @@ class PaymentController extends Controller
     public function prePayPlan(Request $request, InvoicePaymentPlan $plan)
     {
         $invoice = $plan->preInvoice;
+        // dd($invoice->id);
 
         // اگر این قسط قبلاً کامل تسویه شده، جلوی دوباره‌کاری را بگیر
         if ($plan->is_completed) {
@@ -266,9 +267,12 @@ class PaymentController extends Controller
                 'note'         => 'این قسط با پرداخت جزئی بسته شد',
             ]);
 
+            // dd($invoice->id);
+
             // ۲-ب-۱) قسط جدید برای مانده قسط قبلی
             InvoicePaymentPlan::create([
-                'invoice_id'     => $invoice->id,
+                'invoice_id'     => null,
+                'pre_invoice_id' => $invoice->id,
                 'amount'         => $remaining,                       // 500 باقی‌مانده
                 'payment_type'   => $plan->payment_type,
                 'scheduled_date' => $plan->scheduled_date,           // همان تاریخ برنامه‌ریزی‌شده قبلی
