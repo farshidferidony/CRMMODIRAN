@@ -90,7 +90,7 @@
                             </select>
                         </div>
 
-                        {{-- نوع انتقال (تک مرحله ای / دو مرحله ای) --}}
+                        {{-- نوع انتقال (تک مرحله‌ای / دو مرحله‌ای) --}}
                         <div class="mb-3">
                             <label class="form-label">* نوع انتقال</label>
                             <select name="transfer_type" id="transfer_type" class="form-control" required>
@@ -132,7 +132,7 @@
                             $transferType = old('transfer_type', $transport->transfer_type);
                         @endphp
                         <div class="mb-3" id="wagon_type_wrapper"
-                            style="{{ $transferType === 'two_stage' ? '' : 'display:none;' }}">
+                             style="{{ $transferType === 'two_stage' ? '' : 'display:none;' }}">
                             <label class="form-label">نوع واگن</label>
                             <select name="requested_wagon_type" id="requested_wagon_type" class="form-control">
                                 <option value="">انتخاب کنید...</option>
@@ -149,7 +149,6 @@
                                 در صورت انتخاب انتقال دو مرحله‌ای، تکمیل نوع واگن الزامی است.
                             </small>
                         </div>
-
 
                     </div>
                 </div>
@@ -198,7 +197,6 @@
                         </div>
                     </div>
                 </div>
-
                 {{-- بخش سوم: اطلاعات گیرنده و محل تخلیه --}}
                 <div class="card mb-3">
                     <div class="card-header">
@@ -206,26 +204,54 @@
                     </div>
                     <div class="card-body">
 
+                        @php
+                            $isForeign = isset($customerScope) && $customerScope === 'foreign';
+                        @endphp
+
+                        @if(isset($customerScope))
+                            <div class="alert alert-light border small mb-3">
+                                <strong>نوع مشتری:</strong>
+                                @if($isCompany ?? false)
+                                    شرکت
+                                @elseif($isPerson ?? false)
+                                    شخص حقیقی
+                                @else
+                                    نامشخص
+                                @endif
+                                –
+                                <strong>محدوده:</strong>
+                                {{ $customerScope === 'domestic' ? 'داخلی' : 'خارجی' }}
+
+                                @if($isForeign && ($countryName || $provinceName || $cityName))
+                                    <br>
+                                    <strong>موقعیت:</strong>
+                                    {{ $countryName ?? '-' }}
+                                    @if($provinceName) - {{ $provinceName }} @endif
+                                    @if($cityName) - {{ $cityName }} @endif
+                                @endif
+                            </div>
+                        @endif
+
                         {{-- اطلاعات اصلی گیرنده --}}
                         <div class="mb-3">
-                            <label class="form-label">* نام شرکت</label>
+                            <label class="form-label">* نام شرکت (در صورت داشتن شخصیت حقوقی)</label>
                             <input type="text"
-                                name="receiver_company"
-                                class="form-control @error('receiver_company') is-invalid @enderror"
-                                value="{{ old('receiver_company', $transport->receiver_company) }}"
-                                required>
+                                   name="receiver_company"
+                                   class="form-control @error('receiver_company') is-invalid @enderror"
+                                   value="{{ old('receiver_company', $transport->receiver_company) }}"
+                                   required>
                             @error('receiver_company')
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">* نام شخص</label>
+                            <label class="form-label">* نام شخص (گیرنده / مسئول خرید)</label>
                             <input type="text"
-                                name="receiver_name"
-                                class="form-control @error('receiver_name') is-invalid @enderror"
-                                value="{{ old('receiver_name', $transport->receiver_name) }}"
-                                required>
+                                   name="receiver_name"
+                                   class="form-control @error('receiver_name') is-invalid @enderror"
+                                   value="{{ old('receiver_name', $transport->receiver_name) }}"
+                                   required>
                             @error('receiver_name')
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -234,33 +260,56 @@
                         <div class="mb-3">
                             <label class="form-label">* کد پستی گیرنده</label>
                             <input type="text"
-                                name="receiver_postal_code"
-                                class="form-control @error('receiver_postal_code') is-invalid @enderror"
-                                value="{{ old('receiver_postal_code', $transport->receiver_postal_code) }}"
-                                required>
+                                   name="receiver_postal_code"
+                                   class="form-control @error('receiver_postal_code') is-invalid @enderror"
+                                   value="{{ old('receiver_postal_code', $transport->receiver_postal_code) }}"
+                                   required>
                             @error('receiver_postal_code')
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
+                        {{-- شناسه داخلی / کد ملی گیرنده --}}
                         <div class="mb-3">
-                            <label class="form-label">* کد ملی گیرنده</label>
+                            <label class="form-label">
+                                {{ $isForeign ? 'شناسه داخلی (در صورت وجود)' : '* کد ملی گیرنده' }}
+                            </label>
                             <input type="text"
-                                name="receiver_national_code"
-                                class="form-control @error('receiver_national_code') is-invalid @enderror"
-                                value="{{ old('receiver_national_code', $transport->receiver_national_code) }}"
-                                required>
+                                   name="receiver_national_code"
+                                   class="form-control @error('receiver_national_code') is-invalid @enderror"
+                                   value="{{ old('receiver_national_code', $transport->receiver_national_code) }}"
+                                   {{ $isForeign ? '' : 'required' }}>
                             @error('receiver_national_code')
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+
+                            @if($isForeign)
+                                <small class="text-muted">
+                                    مشتری خارجی است؛ فقط در صورت داشتن شناسه داخلی، این فیلد را تکمیل کنید.
+                                </small>
+                            @endif
                         </div>
+
+                        {{-- شماره پاسپورت گیرنده (فقط برای خارجی) --}}
+                        @if($isForeign && $person ?? false)
+                            <div class="mb-3">
+                                <label class="form-label">شماره پاسپورت گیرنده (در صورت نیاز)</label>
+                                <input type="text"
+                                       name="receiver_passport_number"
+                                       class="form-control"
+                                       value="{{ old('receiver_passport_number', $person->passport_number) }}">
+                                <small class="text-muted">
+                                    این فیلد فقط برای مقاصدی استفاده می‌شود که به شماره پاسپورت گیرنده نیاز دارند.
+                                </small>
+                            </div>
+                        @endif
 
                         <div class="mb-3">
                             <label class="form-label">تلفن گیرنده</label>
                             <input type="text"
-                                name="receiver_phone"
-                                class="form-control @error('receiver_phone') is-invalid @enderror"
-                                value="{{ old('receiver_phone', $transport->receiver_phone) }}">
+                                   name="receiver_phone"
+                                   class="form-control @error('receiver_phone') is-invalid @enderror"
+                                   value="{{ old('receiver_phone', $transport->receiver_phone) }}">
                             @error('receiver_phone')
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -269,10 +318,10 @@
                         <div class="mb-3">
                             <label class="form-label">* موبایل گیرنده</label>
                             <input type="text"
-                                name="receiver_mobile"
-                                class="form-control @error('receiver_mobile') is-invalid @enderror"
-                                value="{{ old('receiver_mobile', $transport->receiver_mobile) }}"
-                                required>
+                                   name="receiver_mobile"
+                                   class="form-control @error('receiver_mobile') is-invalid @enderror"
+                                   value="{{ old('receiver_mobile', $transport->receiver_mobile) }}"
+                                   required>
                             @error('receiver_mobile')
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -281,15 +330,20 @@
                         <div class="mb-3">
                             <label class="form-label">* آدرس محل فعالیت</label>
                             <textarea name="receiver_activity_address"
-                                    class="form-control @error('receiver_activity_address') is-invalid @enderror"
-                                    rows="2"
-                                    required>{{ old('receiver_activity_address', $transport->receiver_activity_address) }}</textarea>
+                                      class="form-control @error('receiver_activity_address') is-invalid @enderror"
+                                      rows="2"
+                                      required>{{ old('receiver_activity_address', $transport->receiver_activity_address) }}</textarea>
                             @error('receiver_activity_address')
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+
+                            @if($isForeign)
+                                <small class="text-muted">
+                                    برای مشتری خارجی، آدرس محل فعالیت را به‌صورت دقیق و در صورت نیاز به لاتین وارد کنید.
+                                </small>
+                            @endif
                         </div>
 
-                        {{-- محل تخلیه مورد تایید است؟ --}}
                         @php
                             $unloadingApproved = old('unloading_place_approved', $transport->unloading_place_approved);
                         @endphp
@@ -297,20 +351,20 @@
                             <label class="form-label d-block">* محل تخلیه مورد تایید است؟</label>
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input @error('unloading_place_approved') is-invalid @enderror"
-                                    type="radio"
-                                    name="unloading_place_approved"
-                                    id="unloading_place_approved_yes"
-                                    value="1"
-                                    {{ (string)$unloadingApproved === '1' ? 'checked' : '' }}>
+                                       type="radio"
+                                       name="unloading_place_approved"
+                                       id="unloading_place_approved_yes"
+                                       value="1"
+                                       {{ (string)$unloadingApproved === '1' ? 'checked' : '' }}>
                                 <label class="form-check-label" for="unloading_place_approved_yes">بله</label>
                             </div>
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input @error('unloading_place_approved') is-invalid @enderror"
-                                    type="radio"
-                                    name="unloading_place_approved"
-                                    id="unloading_place_approved_no"
-                                    value="0"
-                                    {{ (string)$unloadingApproved === '0' ? 'checked' : '' }}>
+                                       type="radio"
+                                       name="unloading_place_approved"
+                                       id="unloading_place_approved_no"
+                                       value="0"
+                                       {{ (string)$unloadingApproved === '0' ? 'checked' : '' }}>
                                 <label class="form-check-label" for="unloading_place_approved_no">خیر</label>
                             </div>
                             @error('unloading_place_approved')
@@ -318,13 +372,12 @@
                             @enderror
                         </div>
 
-                        {{-- فیلدهای اضافی در صورت عدم تایید محل تخلیه --}}
-                        <div id="unloading_extra_wrapper">
+                        <div id="unloading_extra_wrapper" style="{{ (string)$unloadingApproved === '1' ? 'display:none;' : 'display:block;' }}">
                             <div class="mb-3">
                                 <label class="form-label">* آدرس محل تخلیه</label>
                                 <textarea name="unloading_address"
-                                        class="form-control @error('unloading_address') is-invalid @enderror"
-                                        rows="2">{{ old('unloading_address', $transport->unloading_address) }}</textarea>
+                                          class="form-control @error('unloading_address') is-invalid @enderror"
+                                          rows="2">{{ old('unloading_address', $transport->unloading_address) }}</textarea>
                                 @error('unloading_address')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -333,9 +386,9 @@
                             <div class="mb-3">
                                 <label class="form-label">* کد پستی محل تخلیه</label>
                                 <input type="text"
-                                    name="unloading_postal_code"
-                                    class="form-control @error('unloading_postal_code') is-invalid @enderror"
-                                    value="{{ old('unloading_postal_code', $transport->unloading_postal_code) }}">
+                                       name="unloading_postal_code"
+                                       class="form-control @error('unloading_postal_code') is-invalid @enderror"
+                                       value="{{ old('unloading_postal_code', $transport->unloading_postal_code) }}">
                                 @error('unloading_postal_code')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -344,9 +397,9 @@
                             <div class="mb-3">
                                 <label class="form-label">* مسئول تخلیه / انباردار</label>
                                 <input type="text"
-                                    name="unloading_responsible"
-                                    class="form-control @error('unloading_responsible') is-invalid @enderror"
-                                    value="{{ old('unloading_responsible', $transport->unloading_responsible) }}">
+                                       name="unloading_responsible"
+                                       class="form-control @error('unloading_responsible') is-invalid @enderror"
+                                       value="{{ old('unloading_responsible', $transport->unloading_responsible) }}">
                                 @error('unloading_responsible')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -355,9 +408,9 @@
                             <div class="mb-3">
                                 <label class="form-label">* شماره تماس مسئول تخلیه</label>
                                 <input type="text"
-                                    name="unloading_responsible_phone"
-                                    class="form-control @error('unloading_responsible_phone') is-invalid @enderror"
-                                    value="{{ old('unloading_responsible_phone', $transport->unloading_responsible_phone) }}">
+                                       name="unloading_responsible_phone"
+                                       class="form-control @error('unloading_responsible_phone') is-invalid @enderror"
+                                       value="{{ old('unloading_responsible_phone', $transport->unloading_responsible_phone) }}">
                                 @error('unloading_responsible_phone')
                                 <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -366,7 +419,6 @@
 
                     </div>
                 </div>
-
 
                 {{-- بخش چهارم: تیک تایید کارشناس فروش --}}
                 <div class="card mb-3">
@@ -398,7 +450,6 @@
                 </div>
 
             </div>
-
             {{-- ستون کناری: اطلاعات خلاصه پیش‌فاکتور --}}
             <div class="col-lg-4">
                 <div class="card mb-3">
@@ -413,8 +464,24 @@
                             </p>
                             <p class="mb-1">
                                 <strong>مشتری:</strong>
-                                {{ $transport->preInvoice->customer?->full_name ?? '-' }}
+                                {{ $transport->preInvoice->customer->display_name ?? '-' }}
                             </p>
+                            <p class="mb-1">
+                                <strong>محدوده مشتری:</strong>
+                                @if(!empty($customerScope))
+                                    {{ $customerScope === 'domestic' ? 'داخلی' : 'خارجی' }}
+                                @else
+                                    -
+                                @endif
+                            </p>
+                            @if($isForeign ?? false)
+                                <p class="mb-1">
+                                    <strong>کشور / استان / شهر:</strong>
+                                    {{ $countryName ?? '-' }}
+                                    @if($provinceName) - {{ $provinceName }} @endif
+                                    @if($cityName) - {{ $cityName }} @endif
+                                </p>
+                            @endif
                             <p class="mb-1">
                                 <strong>مبلغ کل پیش‌فاکتور:</strong>
                                 {{ number_format($transport->preInvoice->total_amount) }}
@@ -445,13 +512,12 @@
             wrapper.style.display = 'none';
             document.getElementById('requested_wagon_type').value = '';
         }
-        console.log(2);
     }
 
     function toggleUnloadingExtra() {
         const yes = document.getElementById('unloading_place_approved_yes');
         const wrapper = document.getElementById('unloading_extra_wrapper');
-        if (yes.checked) {
+        if (yes && yes.checked) {
             wrapper.style.display = 'none';
         } else {
             wrapper.style.display = 'block';
@@ -462,7 +528,7 @@
         // تنظیم اولیه
         toggleWagonType();
         toggleUnloadingExtra();
-        console.log(1);
+
         document.getElementById('transfer_type').addEventListener('change', toggleWagonType);
 
         const unloadingYes = document.getElementById('unloading_place_approved_yes');
@@ -471,8 +537,5 @@
         if (unloadingYes) unloadingYes.addEventListener('change', toggleUnloadingExtra);
         if (unloadingNo)  unloadingNo.addEventListener('change', toggleUnloadingExtra);
     });
-
-    
-
 </script>
 @endsection

@@ -18,8 +18,8 @@
     use App\Models\ProvinceFaEn;
     use App\Models\CityFaEn;
 
-    $person        = $customer->persons->first();
-    $companyModel  = $customer->companies->first();
+    $person       = $customer->persons->first();
+    $companyModel = $customer->companies->first();
 @endphp
 
 <div class="row">
@@ -28,7 +28,7 @@
             <div class="alert alert-danger">
                 <ul class="mb-0">
                     @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
+                        <li class="small">{{ $error }}</li>
                     @endforeach
                 </ul>
             </div>
@@ -39,6 +39,7 @@
             @method('PUT')
 
             @php
+                // دقیقاً مشابه create، فقط پیش‌فرض را از مدل می‌گیریم
                 $scope  = old('customer_scope', $customer->customer_scope ?? 'domestic');
                 $source = old('source', $customer->source ?? '');
                 $active = old('is_active', $customer->is_active ?? 1);
@@ -85,17 +86,15 @@
                     <div class="col-md-4 mb-3 d-flex align-items-center">
                         <div class="form-check form-switch mt-4">
                             <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
-                                value="1" {{ $active ? 'checked' : '' }}>
+                                   value="1" {{ $active ? 'checked' : '' }}>
                             <label class="form-check-label" for="is_active">مشتری فعال است</label>
                         </div>
                     </div>
                 </div>
             </div>
-
-
             <div id="addcustomer-accordion" class="custom-accordion">
 
-                {{-- مشتری حقیقی --}}
+                {{-- شخص حقیقی --}}
                 <div class="card">
                     <a href="#person-collapse" class="text-dark" data-bs-toggle="collapse"
                        aria-expanded="true" aria-controls="person-collapse">
@@ -145,8 +144,9 @@
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
+                            {{-- داخلی/خارجی: کد ملی یا پاسپورت --}}
+                            <div class="row" id="person_national_passport_row">
+                                <div class="col-md-4 mb-3 person-national-wrapper" style="{{ $scope === 'foreign' ? 'display:none;' : '' }}">
                                     <label class="form-label">کد ملی</label>
                                     <input type="text" name="person[national_code]"
                                            class="form-control @error('person.national_code') is-invalid @enderror"
@@ -155,7 +155,8 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                <div class="col-md-4 mb-3">
+
+                                <div class="col-md-4 mb-3 person-passport-wrapper" style="{{ $scope === 'domestic' ? 'display:none;' : '' }}">
                                     <label class="form-label">شماره پاسپورت</label>
                                     <input type="text" name="person[passport_number]"
                                            class="form-control @error('person.passport_number') is-invalid @enderror"
@@ -164,6 +165,7 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
+
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label">ایمیل</label>
                                     <input type="email" name="person[email]"
@@ -175,7 +177,7 @@
                                 </div>
                             </div>
 
-                            {{-- آدرس‌ها و تماس‌های شخص --}}
+                            {{-- آدرس‌ها و شماره تماس شخص --}}
                             <h5 class="mt-4">آدرس‌ها و شماره تماس شخص</h5>
                             @php
                                 $personAddresses = old('person.addresses', []);
@@ -274,8 +276,9 @@
                                 @enderror
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
+                            {{-- داخلی/خارجی: کد اقتصادی و شماره ثبت --}}
+                            <div class="row" id="company_codes_row">
+                                <div class="col-md-4 mb-3 company-economic-wrapper" style="{{ $scope === 'foreign' ? 'display:none;' : '' }}">
                                     <label class="form-label">کد اقتصادی</label>
                                     <input type="text" name="company[economic_code]"
                                            class="form-control @error('company.economic_code') is-invalid @enderror"
@@ -284,7 +287,7 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-4 mb-3 company-registration-wrapper" style="{{ $scope === 'foreign' ? 'display:none;' : '' }}">
                                     <label class="form-label">شماره ثبت</label>
                                     <input type="text" name="company[registration_number]"
                                            class="form-control @error('company.registration_number') is-invalid @enderror"
@@ -304,6 +307,7 @@
                                 </div>
                             </div>
 
+                            {{-- آدرس‌ها و شماره تماس شرکت --}}
                             <h5 class="mt-4">آدرس‌ها و شماره تماس شرکت</h5>
                             @php
                                 $companyAddresses = old('company.addresses', []);
@@ -365,6 +369,67 @@
                             <button type="button" class="btn btn-link" onclick="addAddressRow('company')">
                                 افزودن آدرس جدید برای شرکت
                             </button>
+
+
+                            {{-- افزودن افراد قبلی به این شرکت --}}
+                            <hr class="my-4">
+                            <h5 class="font-size-15 mb-3">افزودن افراد قبلاً ثبت‌شده به این شرکت</h5>
+
+                            @php
+                                $company = $companyModel ?? null;
+
+                                $existingRelatedPersons = [];
+                                $existingRole = null;
+
+                                if ($company && $company->relationLoaded('persons') && $company->persons && $company->persons->count()) {
+                                    $existingRelatedPersons = $company->persons->pluck('id')->toArray();
+
+                                    // اگر حداقل یک شخص وجود دارد، role را از pivot اولین شخص بگیر
+                                    $firstPerson = $company->persons->first();
+                                    if ($firstPerson && $firstPerson->pivot) {
+                                        $existingRole = $firstPerson->pivot->role;
+                                    }
+                                }
+
+                                $selectedPersons    = old('existing_person_ids', $existingRelatedPersons);
+                                $existingPersonRole = old('existing_person_role', $existingRole ?? '');
+                            @endphp
+
+
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    انتخاب افراد موجود (کارمندان قبلی)
+                                </label>
+                                <select name="existing_person_ids[]"
+                                        class="form-select"
+                                        multiple
+                                        data-toggle="select2">
+                                    @foreach($existingPersons as $p)
+                                        <option value="{{ $p->id }}"
+                                            {{ in_array($p->id, $selectedPersons ?? []) ? 'selected' : '' }}>
+                                            {{ $p->first_name }} {{ $p->last_name }}
+                                            @if($p->national_code)
+                                                (کد ملی: {{ $p->national_code }})
+                                            @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted d-block mt-1">
+                                    می‌توانید چند شخص قبلی را به عنوان کارمند این شرکت مرتبط کنید.
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">نقش / رسته شغلی افراد انتخاب‌شده</label>
+                                <input type="text"
+                                    name="existing_person_role"
+                                    class="form-control"
+                                    value="{{ $existingPersonRole }}"
+                                    placeholder="مثلاً: کارشناس خرید، کارشناس فروش، مدیر خرید و ...">
+                            </div>
+
+
+
                         </div>
                     </div>
                 </div>
@@ -386,11 +451,10 @@
     </div>
 </div>
 @endsection
-
 @section('script')
     <script src="{{ URL::asset('/assets/libs/select2/select2.min.js') }}"></script>
 
-    {{-- قالب مخفی برای آدرس جدید --}}
+    {{-- قالب مخفی آدرس برای افزودن داینامیک --}}
     <div id="address-template" style="display:none;">
         <div class="address-group mb-4 border rounded p-3">
             <input type="hidden" name="__PREFIX__[addresses][__INDEX__][id]" value="">
@@ -437,8 +501,7 @@
             <div id="__PREFIX__-contacts-__INDEX__">
                 <div class="contact-row row mb-2">
                     <div class="col-md-4">
-                        <select name="__PREFIX__[addresses][__INDEX__][contacts][0][type]"
-                                class="form-control">
+                        <select name="__PREFIX__[addresses][__INDEX__][contacts][0][type]" class="form-control">
                             <option value="mobile">موبایل</option>
                             <option value="phone">تلفن ثابت</option>
                         </select>
@@ -478,29 +541,27 @@
             let count       = contactsDiv.getElementsByClassName('contact-row').length;
 
             let html = `
-                <div class="contact-row row mb-2">
-                    <div class="col-md-4">
-                        <select name="${prefix}[addresses][${addressIdx}][contacts][${count}][type]" class="form-control">
-                            <option value="mobile">موبایل</option>
-                            <option value="phone">تلفن ثابت</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <input type="text"
-                               name="${prefix}[addresses][${addressIdx}][contacts][${count}][value]"
-                               class="form-control"
-                               placeholder="شماره">
-                    </div>
-                    <div class="col-md-2">
-                        <button type="button" class="btn btn-danger btn-sm"
-                                onclick="this.closest('.contact-row').remove()">-</button>
-                    </div>
-                </div>`;
+            <div class="contact-row row mb-2">
+                <div class="col-md-4">
+                    <select name="${prefix}[addresses][${addressIdx}][contacts][${count}][type]" class="form-control">
+                        <option value="mobile">موبایل</option>
+                        <option value="phone">تلفن ثابت</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <input type="text"
+                           name="${prefix}[addresses][${addressIdx}][contacts][${count}][value]"
+                           class="form-control"
+                           placeholder="شماره">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger btn-sm"
+                            onclick="this.closest('.contact-row').remove()">-</button>
+                </div>
+            </div>`;
             contactsDiv.insertAdjacentHTML('beforeend', html);
         }
-    </script>
 
-    <script>
         document.addEventListener('change', function(e) {
             if (e.target.classList.contains('country-select')) {
                 let select         = e.target;
@@ -561,6 +622,55 @@
                     citySelect.innerHTML = '<option value="">انتخاب کنید</option>';
                 }
             }
+        });
+
+        // سوییچ داخلی/خارجی دقیقاً مثل create
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $('[data-toggle="select2"]').select2({ width: '100%', dir: 'rtl' });
+            }
+
+            const scopeSelect = document.getElementById('customer_scope');
+            if (!scopeSelect) return;
+
+            scopeSelect.addEventListener('change', function () {
+                const scope = this.value;
+
+                // شخص: کد ملی/پاسپورت
+                const nationalWrapper = document.querySelector('.person-national-wrapper');
+                const passportWrapper = document.querySelector('.person-passport-wrapper');
+
+                if (nationalWrapper && passportWrapper) {
+                    if (scope === 'domestic') {
+                        nationalWrapper.style.display = 'block';
+                        passportWrapper.style.display = 'none';
+                        passportWrapper.querySelector('input').value = '';
+                    } else {
+                        nationalWrapper.style.display = 'none';
+                        nationalWrapper.querySelector('input').value = '';
+                        passportWrapper.style.display = 'block';
+                    }
+                }
+
+                // شرکت: کد اقتصادی و شماره ثبت
+                const economicWrapper     = document.querySelector('.company-economic-wrapper');
+                const registrationWrapper = document.querySelector('.company-registration-wrapper');
+
+                if (economicWrapper && registrationWrapper) {
+                    if (scope === 'domestic') {
+                        economicWrapper.style.display = 'block';
+                        registrationWrapper.style.display = 'block';
+                    } else {
+                        economicWrapper.style.display = 'none';
+                        registrationWrapper.style.display = 'none';
+                        economicWrapper.querySelector('input').value = '';
+                        registrationWrapper.querySelector('input').value = '';
+                    }
+                }
+            });
+
+            // تریگر اولیه برای هم‌راستایی با مقدار old()/مشتری
+            scopeSelect.dispatchEvent(new Event('change'));
         });
     </script>
 @endsection

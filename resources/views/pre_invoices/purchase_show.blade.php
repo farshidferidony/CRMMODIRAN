@@ -41,6 +41,10 @@
 
 
 {{-- فقط وقتی در انتظار تایید مالی است --}}
+
+@php
+//dd($preInvoice->status);
+@endphp
 @if($preInvoice->status === \App\Enums\PreInvoiceStatus::WaitingFinancePurchase)
     <div class="card mt-3">
         <div class="card-header">اقدام مالی روی این پیش‌فاکتور خرید</div>
@@ -666,26 +670,28 @@
             <td>{{ $item->final_unit_price ? number_format($item->final_unit_price) : '-' }}</td>
             <td>{{ $item->final_total_price ? number_format($item->final_total_price) : '-' }}</td>
             <td>
-                <form method="POST" action="{{ route('purchase_pre_invoices.items.finalize', $item->id) }}" class="row g-1">
-                    @csrf
-                    <div class="col-4">
-                        <input type="number" step="0.001" name="final_quantity"
-                               class="form-control form-control-sm"
-                               value="{{ old('final_quantity', $item->final_quantity ?? $item->quantity) }}"
-                               placeholder="وزن/مقدار نهایی">
-                    </div>
-                    <div class="col-4">
-                        <input type="number" step="0.01" name="final_unit_price"
-                               class="form-control form-control-sm"
-                               value="{{ old('final_unit_price', $item->final_unit_price ?? $item->unit_price) }}"
-                               placeholder="قیمت واحد نهایی">
-                    </div>
-                    <div class="col-4">
-                        <button class="btn btn-sm btn-success w-100">
-                            ثبت خرید آیتم
-                        </button>
-                    </div>
-                </form>
+                @if($preInvoice->status === \App\Enums\PreInvoiceStatus::FinancePurchaseApproved)
+                    <form method="POST" action="{{ route('purchase_pre_invoices.items.finalize', $item->id) }}" class="row g-1">
+                        @csrf
+                        <div class="col-4">
+                            <input type="number" step="0.001" name="final_quantity"
+                                class="form-control form-control-sm"
+                                value="{{ old('final_quantity', $item->final_quantity ?? $item->quantity) }}"
+                                placeholder="وزن/مقدار نهایی">
+                        </div>
+                        <div class="col-4">
+                            <input type="number" step="0.01" name="final_unit_price"
+                                class="form-control form-control-sm"
+                                value="{{ old('final_unit_price', $item->final_unit_price ?? $item->unit_price) }}"
+                                placeholder="قیمت واحد نهایی">
+                        </div>
+                        <div class="col-4">
+                            <button class="btn btn-sm btn-success w-100">
+                                ثبت خرید آیتم
+                            </button>
+                        </div>
+                    </form>
+                @endif    
             </td>
         </tr>
     @endforeach

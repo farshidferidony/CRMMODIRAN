@@ -65,6 +65,22 @@ class Company extends Model
         return $this->belongsTo(Company::class);
     }
 
+    // Company.php
+    public function getDisplayNameAttribute()
+    {
+        return $this->name ?? '';
+    }
+
+    public function persons()
+    {
+        return $this->belongsToMany(Person::class, 'company_customer_roles', 'company_id', 'person_id')
+                    ->withPivot('role')
+                    ->withTimestamps();
+    }
+
+
+
+
 }
 
 

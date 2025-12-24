@@ -89,8 +89,10 @@ enum PreInvoiceStatus:string
             
             self::PostPurchaseSalesApproved => 'تایید شرایط توسط کارشناس فروش (بعد از خرید)',
             self::ShippingRequested         => 'درخواست فرم حمل',
-            self::ShippingPrepared         => 'آماده حمل',
-            self::ShippingInProgress       => 'در حال حمل',
+            self::ShippingPrepared          => 'آماده حمل',
+            self::ShippingInProgress        => 'در حال حمل',
+            self::Delivered                 => 'تخلیه و تایید شده',
+            
             self::Invoiced                 => 'تبدیل به فاکتور',
 
         };

@@ -24,12 +24,35 @@
         @forelse($preInvoice->transports as $t)
             <tr>
                 <td>{{ $t->id }}</td>
-                <td>{{ $t->status }}</td>
+                <td>{{ $t->status?->label() }}</td>
                 <td>{{ jdate($t->created_at)->format('Y/m/d H:i') }}</td>
                 <td>
-                    <a href="{{ route('transports.edit', $t->id) }}" class="btn btn-sm btn-primary">
-                        مشاهده / تکمیل فرم حمل
-                    </a>
+
+                   @php
+                        $status = $t->status instanceof \App\Enums\TransportStatus
+                            ? $t->status->value
+                            : $t->status;
+                    @endphp
+
+                    @if($status === \App\Enums\TransportStatus::RequestedBySales->value)
+                        {{-- هنوز در مرحله کارشناس فروش --}}
+                        <a href="{{ route('transports.edit', $t->id) }}"
+                        class="btn btn-sm btn-primary">
+                            ویرایش (فروش)
+                        </a>
+                    @elseif($status === \App\Enums\TransportStatus::CompletedBySales->value)
+                        {{-- مرحله بعد: کارشناس خرید در همان context پیش‌فاکتور --}}
+                        <a href="{{ route('pre_invoices.transports.buy', [$t->pre_invoice_id, $t->id]) }}"
+                        class="btn btn-sm btn-warning">
+                            مرحله خرید
+                        </a>
+                    @else
+                        <a href="{{ route('pre_invoices.transports.wizard.show', [$preInvoice->id, $t->id]) }}" class="btn btn-sm btn-outline-secondary">
+                            مشاهده
+                        </a>
+
+                    @endif
+
                 </td>
             </tr>
         @empty

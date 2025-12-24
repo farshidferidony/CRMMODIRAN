@@ -13,7 +13,7 @@ use Spatie\Activitylog\LogOptions;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, LogsActivity;
+    use HasFactory, Notifiable, LogsActivity, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -63,11 +63,29 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class);
     }
 
+    // public function hasRole(string|array $roles): bool
+    // {
+    //     $roles = (array) $roles;
+    //     return $this->roles()->whereIn('name', $roles)->exists();
+    // }
+
     public function hasRole(string|array $roles): bool
     {
-        $roles = (array) $roles;
+        // اگر نقش‌ها را به‌صورت چند آرایه یا چند پارامتر داده باشند، صافش کن
+        $roles = is_array($roles) ? $roles : func_get_args();
+
+        // تبدیل همه مقادیر به رشته و صاف کردن آرایه‌های تو‌در‌تو
+        $roles = collect($roles)
+            ->flatten()
+            ->filter()
+            ->map(fn ($r) => (string) $r)
+            ->unique()
+            ->values()
+            ->all();
+
         return $this->roles()->whereIn('name', $roles)->exists();
     }
+
 
     public function categoryRoles()
     {
@@ -112,5 +130,23 @@ class User extends Authenticatable
             'commerce_manager', // مدیر بازرگانی
         ]);
     }
+
+    
+    public function canDecideOnPurchaseAssignments(): bool
+    {
+        return $this->hasAnyRole([
+            'ceo',
+            'it_manager',
+            'commerce_manager',
+            'purchase_manager',
+            'sales_manager',
+        ]);
+    }
+
+    public function permissionOverrides()
+    {
+        return $this->hasMany(PermissionUserOverride::class);
+    }
+
 
 }

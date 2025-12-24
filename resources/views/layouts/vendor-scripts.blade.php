@@ -1,5 +1,7 @@
 <!-- JAVASCRIPT -->
  <script src="{{ URL::asset('/assets/libs/jquery/jquery.min.js')}}"></script>
+ <script src="https://unpkg.com/persian-date@1.0.3/dist/persian-date.min.js"></script>
+ <script src="https://unpkg.com/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
  <script src="{{ URL::asset('/assets/libs/bootstrap/bootstrap.min.js')}}"></script>
  <script src="{{ URL::asset('/assets/libs/metismenu/metismenu.min.js')}}"></script>
  <script src="{{ URL::asset('/assets/libs/simplebar/simplebar.min.js')}}"></script>

@@ -8,6 +8,9 @@ use App\Models\InvoicePaymentPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File; // اگر از File استفاده می‌کنی
+
 
 
 class PaymentController extends Controller
@@ -213,9 +216,7 @@ class PaymentController extends Controller
     public function prePayPlan(Request $request, InvoicePaymentPlan $plan)
     {
         $invoice = $plan->preInvoice;
-        // dd($invoice->id);
 
-        // اگر این قسط قبلاً کامل تسویه شده، جلوی دوباره‌کاری را بگیر
         if ($plan->is_completed) {
             return back()->with('error','این قسط قبلاً به طور کامل تسویه شده است.');
         }
@@ -226,23 +227,37 @@ class PaymentController extends Controller
             'receipt'          => 'nullable|file|max:5120',
         ]);
 
-        $planned = $plan->amount;          // مبلغی که در برنامه برای این قسط ثبت شده (مثلاً 1000)
-        $paid    = $data['paid_amount'];   // مبلغی که الان مشتری واقعاً پرداخت کرده (مثلاً 500)
+        $planned = $plan->amount;
+        $paid    = $data['paid_amount'];
 
-        // فیش
-        $path = null;
-        if ($request->hasFile('receipt')) {
-            $path = $request->file('receipt')->store('receipts','public');
+        // 1) تعیین مسیر دایرکتوری رسیدها (روی disk public)
+        // مثلاً: receipts/pre_invoices/{pre_invoice_id}/
+        $directory = 'receipts/pre_invoices/'.$invoice->id;
+
+        // مطمئن شو دایرکتوری روی disk public وجود دارد
+        if (! Storage::disk('public')->exists($directory)) {
+            Storage::disk('public')->makeDirectory($directory);
         }
 
-        // ۱) همیشه یک رکورد Payment برای این پرداخت می‌سازیم
+        // 2) ذخیره فایل در مسیر بالا
+        $path = null;
+        if ($request->hasFile('receipt')) {
+            // نام فایل یکتا (اختیاری، می‌توانی از hashName هم استفاده کنی)
+            $file = $request->file('receipt');
+            $filename = time().'_'.$file->getClientOriginalName();
+
+            $path = $file->storeAs($directory, $filename, 'public');
+            // $path حالا چیزی شبیه: receipts/pre_invoices/123/1688999999_file.pdf
+        }
+
+        // ۳) ثبت Payment
         Payment::create([
             'invoice_id'       => null,
             'pre_invoice_id'   => $invoice->id,
             'customer_id'      => $invoice->customer_id,
             'plan_id'          => $plan->id,
-            'amount'           => $planned,                 // مبلغ برنامه‌ای این قسط
-            'paid_amount'      => min($paid, $planned),     // مبلغی که الان واقعاً پرداخت شد
+            'amount'           => $planned,
+            'paid_amount'      => min($paid, $planned),
             'payment_type'     => $plan->payment_type,
             'scheduled_date'   => $plan->scheduled_date,
             'actual_paid_date' => $data['actual_paid_date'],
@@ -252,47 +267,125 @@ class PaymentController extends Controller
         ]);
 
         if ($paid >= $planned) {
-            // ۲-الف) قسط به طور کامل یا بیشتر از مقدارش پرداخت شده
             $plan->update([
                 'is_completed' => true,
                 'note'         => 'قسط به طور کامل پرداخت شد',
             ]);
         } else {
-            // ۲-ب) پرداخت کمتر از مبلغ قسط (سناریوی تو: 1000 برنامه، 500 پرداخت شده)
-            $remaining = $planned - $paid; // 500 باقیمانده
+            $remaining = $planned - $paid;
 
-            // این قسط اولیه را کامل‌شده علامت بزن که دیگر روی آن پرداخت ثبت نشود
             $plan->update([
                 'is_completed' => true,
                 'note'         => 'این قسط با پرداخت جزئی بسته شد',
             ]);
 
-            // dd($invoice->id);
-
-            // ۲-ب-۱) قسط جدید برای مانده قسط قبلی
             InvoicePaymentPlan::create([
                 'invoice_id'     => null,
                 'pre_invoice_id' => $invoice->id,
-                'amount'         => $remaining,                       // 500 باقی‌مانده
+                'amount'         => $remaining,
                 'payment_type'   => $plan->payment_type,
-                'scheduled_date' => $plan->scheduled_date,           // همان تاریخ برنامه‌ریزی‌شده قبلی
+                'scheduled_date' => $plan->scheduled_date,
                 'is_completed'   => false,
                 'note'           => 'باقی‌مانده از قسط قبلی (#'.$plan->id.')',
             ]);
         }
 
-        // ۳) آپدیت وضعیت فاکتور بر اساس مجموع paid_amount تأییدشده
         $paidSum = $invoice->payments()
             ->where('status','confirmed')
             ->sum(DB::raw('paid_amount'));
 
         if ($paidSum >= $invoice->total_amount) {
-            $invoice->status = 'paid';
-            $invoice->save();
+            // اینجا اگر خواستی وضعیت invoice را تغییر بده
+            // $invoice->status = 'paid';
+            // $invoice->save();
         }
 
         return back()->with('success','پرداخت برای این قسط ثبت شد.');
     }
+
+    // public function prePayPlan(Request $request, InvoicePaymentPlan $plan)
+    // {
+    //     $invoice = $plan->preInvoice;
+    //     // dd($invoice->id);
+
+    //     // اگر این قسط قبلاً کامل تسویه شده، جلوی دوباره‌کاری را بگیر
+    //     if ($plan->is_completed) {
+    //         return back()->with('error','این قسط قبلاً به طور کامل تسویه شده است.');
+    //     }
+
+    //     $data = $request->validate([
+    //         'paid_amount'      => 'required|numeric|min:0.01',
+    //         'actual_paid_date' => 'required|date',
+    //         'receipt'          => 'nullable|file|max:5120',
+    //     ]);
+
+    //     $planned = $plan->amount;          // مبلغی که در برنامه برای این قسط ثبت شده (مثلاً 1000)
+    //     $paid    = $data['paid_amount'];   // مبلغی که الان مشتری واقعاً پرداخت کرده (مثلاً 500)
+
+    //     // فیش
+    //     $path = null;
+    //     if ($request->hasFile('receipt')) {
+    //         $path = $request->file('receipt')->store('receipts','public');
+    //     }
+
+    //     // ۱) همیشه یک رکورد Payment برای این پرداخت می‌سازیم
+    //     Payment::create([
+    //         'invoice_id'       => null,
+    //         'pre_invoice_id'   => $invoice->id,
+    //         'customer_id'      => $invoice->customer_id,
+    //         'plan_id'          => $plan->id,
+    //         'amount'           => $planned,                 // مبلغ برنامه‌ای این قسط
+    //         'paid_amount'      => min($paid, $planned),     // مبلغی که الان واقعاً پرداخت شد
+    //         'payment_type'     => $plan->payment_type,
+    //         'scheduled_date'   => $plan->scheduled_date,
+    //         'actual_paid_date' => $data['actual_paid_date'],
+    //         'paid_date'        => $data['actual_paid_date'],
+    //         'status'           => 'pending',
+    //         'receipt_path'     => $path,
+    //     ]);
+
+    //     if ($paid >= $planned) {
+    //         // ۲-الف) قسط به طور کامل یا بیشتر از مقدارش پرداخت شده
+    //         $plan->update([
+    //             'is_completed' => true,
+    //             'note'         => 'قسط به طور کامل پرداخت شد',
+    //         ]);
+    //     } else {
+    //         // ۲-ب) پرداخت کمتر از مبلغ قسط (سناریوی تو: 1000 برنامه، 500 پرداخت شده)
+    //         $remaining = $planned - $paid; // 500 باقیمانده
+
+    //         // این قسط اولیه را کامل‌شده علامت بزن که دیگر روی آن پرداخت ثبت نشود
+    //         $plan->update([
+    //             'is_completed' => true,
+    //             'note'         => 'این قسط با پرداخت جزئی بسته شد',
+    //         ]);
+
+    //         // dd($invoice->id);
+
+    //         // ۲-ب-۱) قسط جدید برای مانده قسط قبلی
+    //         InvoicePaymentPlan::create([
+    //             'invoice_id'     => null,
+    //             'pre_invoice_id' => $invoice->id,
+    //             'amount'         => $remaining,                       // 500 باقی‌مانده
+    //             'payment_type'   => $plan->payment_type,
+    //             'scheduled_date' => $plan->scheduled_date,           // همان تاریخ برنامه‌ریزی‌شده قبلی
+    //             'is_completed'   => false,
+    //             'note'           => 'باقی‌مانده از قسط قبلی (#'.$plan->id.')',
+    //         ]);
+    //     }
+
+    //     // ۳) آپدیت وضعیت فاکتور بر اساس مجموع paid_amount تأییدشده
+    //     $paidSum = $invoice->payments()
+    //         ->where('status','confirmed')
+    //         ->sum(DB::raw('paid_amount'));
+
+    //     if ($paidSum >= $invoice->total_amount) {
+    //         // $invoice->status = 'paid';
+    //         // $invoice->save();
+    //     }
+
+    //     return back()->with('success','پرداخت برای این قسط ثبت شد.');
+    // }
 
     public function storeCustomer(Request $request, PreInvoice $pre_invoice)
     {

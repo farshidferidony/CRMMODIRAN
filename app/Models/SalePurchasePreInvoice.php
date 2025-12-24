@@ -55,4 +55,14 @@ class SalePurchasePreInvoice extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    // public function supplier()
+    // {
+    //     return $this->belongsTo(Supplier::class);   // یا Source::class
+    // }
+
+    public function buyer()
+    {
+        return $this->belongsTo(User::class, 'buyer_id'); // نام ستون را با واقعی جایگزین کن
+    }
 }

@@ -59,5 +59,14 @@ class ProductCategory extends Model
         )->withPivot('role_id')->withTimestamps();
     }
 
+    public function selfAndDescendantIds()
+    {
+        $ids = [$this->id];
 
+        foreach ($this->children as $child) {
+            $ids = array_merge($ids, $child->selfAndDescendantIds());
+        }
+
+        return $ids;
+    }
 }

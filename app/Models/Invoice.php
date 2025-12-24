@@ -109,4 +109,14 @@ class Invoice extends Model
         return $query->withBalance();
     }
 
+     public function transports()
+    {
+        return $this->hasMany(Transport::class);
+    }
+
+    public function paymentPlans()
+    {
+        return $this->hasMany(InvoicePaymentPlan::class);
+    }
+
 }

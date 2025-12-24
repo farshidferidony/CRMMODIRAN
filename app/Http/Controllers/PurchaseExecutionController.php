@@ -76,26 +76,66 @@ class PurchaseExecutionController extends Controller
     // ثبت نهایی خرید برای یک آیتم
     public function finalizeItem(Request $request, PreInvoiceItem $item)
     {
-        $preInvoice = $item->preInvoice;
-        // abort_unless($preInvoice && $preInvoice->direction === 'purchase', 404);
+        // برای آیتم‌های خرید باید از purchasePreInvoice استفاده کنیم
+        $purchasePreInvoice = $item->purchasePreInvoice; // این رابطه را باید در مدل تعریف کرده باشی
+
+        abort_unless($purchasePreInvoice && $purchasePreInvoice->direction === 'purchase', 404);
 
         $data = $request->validate([
-            'final_quantity'    => ['required', 'numeric', 'min:0.001'],
-            'final_unit_price'  => ['required', 'numeric', 'min:0'],
+            'final_quantity'   => ['required', 'numeric', 'min:0.001'],
+            'final_unit_price' => ['required', 'numeric', 'min:0'],
         ]);
 
-        DB::transaction(function () use ($item, $data) {
+        DB::transaction(function () use ($item, $purchasePreInvoice, $data) {
             $finalTotal = $data['final_quantity'] * $data['final_unit_price'];
 
-            $item->final_quantity    = $data['final_quantity'];
-            $item->final_unit_price  = $data['final_unit_price'];
-            $item->final_total_price = $finalTotal;
-            $item->status            = 'purchased'; // اگر ستون status داری
+            // آپدیت خود آیتم (آیتم پیش‌فاکتور خرید)
+            $item->final_quantity     = $data['final_quantity'];
+            $item->final_unit_price   = $data['final_unit_price'];
+            $item->final_total_price  = $finalTotal;
+            $item->status             = 'purchased'; // اگر ستون status داری
             $item->save();
+
+            // آپدیت total_amount روی خود پیش‌فاکتور خرید
+            $purchasePreInvoiceLocked = PreInvoice::whereKey($purchasePreInvoice->id)
+                ->lockForUpdate()
+                ->first();
+
+            $purchasePreInvoiceLocked->total_amount = $purchasePreInvoiceLocked
+                ->purchaseItems() // دقت کن از رابطه‌ی آیتم‌های خرید استفاده شود
+                ->sum('final_total_price');
+
+            $purchasePreInvoiceLocked->save();
         });
 
         return back()->with('success', 'خرید آیتم با اطلاعات نهایی ثبت شد.');
     }
+
+
+    // public function finalizeItem(Request $request, PreInvoiceItem $item)
+    // {
+    //     $preInvoice = $item->preInvoice;
+    //     // abort_unless($preInvoice && $preInvoice->direction === 'purchase', 404);
+
+    //     $data = $request->validate([
+    //         'final_quantity'    => ['required', 'numeric', 'min:0.001'],
+    //         'final_unit_price'  => ['required', 'numeric', 'min:0'],
+    //     ]);
+
+    //     // dd($data);
+
+    //     DB::transaction(function () use ($item, $data) {
+    //         $finalTotal = $data['final_quantity'] * $data['final_unit_price'];
+
+    //         $item->final_quantity    = $data['final_quantity'];
+    //         $item->final_unit_price  = $data['final_unit_price'];
+    //         $item->final_total_price = $finalTotal;
+    //         $item->status            = 'purchased'; // اگر ستون status داری
+    //         $item->save();
+    //     });
+
+    //     return back()->with('success', 'خرید آیتم با اطلاعات نهایی ثبت شد.');
+    // }
 
     // تایید خرید کل این پیش‌فاکتور خرید توسط مدیر خرید
     public function approvePurchase(PreInvoice $purchasePreInvoice)

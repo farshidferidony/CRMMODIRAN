@@ -16,12 +16,14 @@ class Customer extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'customer_scope',
         'source',
         'is_active',
         'creator_id',
     ];
 
     protected static $logAttributes = [
+        'customer_scope',
         'source',
         'is_active',
         'creator_id',
@@ -73,14 +75,31 @@ class Customer extends Model
         return $this->companies()->first();
     }
 
+    // public function getDisplayNameAttribute()
+    // {
+    //     if ($this->company) {
+    //         return $this->company->name;
+    //     }
+
+    //     return trim(($this->firstname ?? '') . ' ' . ($this->lastname ?? ''));
+    // }
+
     public function getDisplayNameAttribute()
     {
-        if ($this->company) {
-            return $this->company->name;
+        // اگر شرکت اصلی دارد، اول شرکت را نمایش بده
+        if ($company = $this->primaryCompany()) {
+            return $company->display_name;
         }
 
-        return trim(($this->firstname ?? '') . ' ' . ($this->lastname ?? ''));
+        // در غیر این صورت اگر شخص اصلی دارد
+        if ($person = $this->primaryPerson()) {
+            return $person->display_name;
+        }
+
+        // اگر هیچ لینکی نیست
+        return '';
     }
+
 }
 
 

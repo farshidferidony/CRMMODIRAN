@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use Illuminate\Support\Facades\DB;
+use App\Services\InvoiceService;
 
 
 
@@ -37,20 +38,15 @@ class PreInvoiceController extends Controller
 
     public function index()
     {
-        // $preInvoices = PreInvoice::with('customer')
-        //     ->where('direction', 'sale')
-        //     ->orderByDesc('id')
-        //     ->paginate(30);
-
         $preInvoices = PreInvoice::with(['customer.companies'])
             ->where('direction', 'sale')
-            ->orderByDesc('id')
-            ->latest()
+            ->notInvoiced()
+            ->latest('id')   // یا فقط latest() کافی است
             ->paginate(20);
-
 
         return view('pre_invoices.index', compact('preInvoices'));
     }
+
 
 
     // public function show(PreInvoice $pre_invoice)
@@ -102,6 +98,7 @@ class PreInvoiceController extends Controller
         $pre_invoice->load([
             'customer',
             'saleItems.product',
+            'saleItems.purchaseAssignments.buyer',
             'purchasePreInvoices.source',
             'purchasePreInvoices.buyer',
             'plans',
@@ -248,9 +245,9 @@ class PreInvoiceController extends Controller
 
     public function editSalePrices(PreInvoice $pre_invoice)
     {
-        if (! $pre_invoice->canBePricedBySales()) {
-            abort(403,'این پیش‌فاکتور در وضعیت مناسب برای قیمت‌گذاری فروش نیست.');
-        }
+        // if (! $pre_invoice->canBePricedBySales()) {
+        //     abort(403,'این پیش‌فاکتور در وضعیت مناسب برای قیمت‌گذاری فروش نیست.');
+        // }
 
         $pre_invoice->load('items.product','customer','source');
 
@@ -430,7 +427,7 @@ class PreInvoiceController extends Controller
 
     public function create()
     {
-        $this->authorize('create', PreInvoice::class);
+        // $this->authorize('create', PreInvoice::class);
 
         $customers = Customer::orderBy('id','desc')->get();
         $sources   = Source::orderBy('id','desc')->get();
@@ -440,7 +437,7 @@ class PreInvoiceController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorize('create', PreInvoice::class);
+        // $this->authorize('create', PreInvoice::class);
 
         $data = $request->validate([
             'customer_id' => 'required|exists:customers,id',
@@ -458,8 +455,7 @@ class PreInvoiceController extends Controller
             'created_by'   => auth()->id(),
         ]);
 
-        return redirect()->route('pre-invoices.edit',$preInvoice->id)
-            ->with('success','پیش‌فاکتور ایجاد شد، لطفاً آیتم‌ها را اضافه کنید.');
+        return redirect()->route('pre-invoices.edit',$preInvoice->id)->with('success','پیش‌فاکتور ایجاد شد، لطفاً آیتم‌ها را اضافه کنید.');
     }
 
     // public function edit(PreInvoice $pre_invoice)
@@ -472,7 +468,7 @@ class PreInvoiceController extends Controller
 
     //     return view('pre_invoices.edit', compact('preInvoice','customers','sources'));
     // }
-    
+
     public function edit(PreInvoice $pre_invoice)
     {
         $this->authorize('update', $pre_invoice);
@@ -480,15 +476,36 @@ class PreInvoiceController extends Controller
         $customers = Customer::orderBy('id','desc')->get();
         $sources   = Source::orderBy('id','desc')->get();
         $buyers    = User::whereHas('roles', function($q){
-                            $q->where('name','purchase_expert'); // اسم نقش کارشناس خرید
-                        })->orderBy('name')->get();
+                        $q->where('name','purchase_expert');
+                    })->orderBy('name')->get();
 
-        // $preInvoice = $pre_invoice->load('items.product.purchaseAssignments.buyer','items.product');
+        // ✅ اضافه کردن دسته‌بندی‌ها (فقط والدین)
+        $categories = \App\Models\ProductCategory::whereNull('parent_id')
+                                        ->orderBy('name')
+                                        ->get();
+
         $preInvoice = $pre_invoice->load('items.purchaseAssignments.buyer','items.product');
 
-
-        return view('pre_invoices.edit', compact('preInvoice','customers','sources','buyers'));
+        return view('pre_invoices.edit', compact('preInvoice','customers','sources','buyers', 'categories'));
     }
+
+    
+    // public function edit(PreInvoice $pre_invoice)
+    // {
+    //     $this->authorize('update', $pre_invoice);
+
+    //     $customers = Customer::orderBy('id','desc')->get();
+    //     $sources   = Source::orderBy('id','desc')->get();
+    //     $buyers    = User::whereHas('roles', function($q){
+    //                         $q->where('name','purchase_expert'); // اسم نقش کارشناس خرید
+    //                     })->orderBy('name')->get();
+
+    //     // $preInvoice = $pre_invoice->load('items.product.purchaseAssignments.buyer','items.product');
+    //     $preInvoice = $pre_invoice->load('items.purchaseAssignments.buyer','items.product');
+
+
+    //     return view('pre_invoices.edit', compact('preInvoice','customers','sources','buyers'));
+    // }
     
 
     public function update(Request $request, PreInvoice $pre_invoice)
@@ -496,8 +513,8 @@ class PreInvoiceController extends Controller
         $this->authorize('update', $pre_invoice);
 
         $data = $request->validate([
-            'customer_id' => 'required|exists:customers,id',
-            'source_id'   => 'nullable|exists:sources,id',
+            // 'customer_id' => 'required|exists:customers,id',
+            // 'source_id'   => 'nullable|exists:sources,id',
             'type'        => 'required|in:normal,formal,export',
         ]);
 
@@ -578,7 +595,7 @@ class PreInvoiceController extends Controller
         $pre_invoice->save();
 
         return redirect()
-            ->route('pre-invoices.edit',$pre_invoice->id)
+            ->route('pre-invoices.show',$pre_invoice->id)
             ->with('success','قیمت‌های فروش ذخیره شد و پیش‌فاکتور برای تأیید آماده است.');
     }
 
@@ -878,6 +895,49 @@ class PreInvoiceController extends Controller
 
         return back()->with('success', 'درخواست فرم حمل ثبت شد و برای واحد حمل/لجستیک ارسال گردید.');
     }
+
+    // public function salesManagerDecision(Request $request, PreInvoice $preInvoice)
+    // {
+    //     $data = $request->validate([
+    //         'decision' => 'required|in:wait,approve_and_invoice',
+    //     ]);
+
+    //     $wait = $data['decision'] === 'wait';
+
+    //     $preInvoice->markAfterSalesManagerDecision($wait);
+
+    //     if (!$wait) {
+    //         // اینجا تبدیل به فاکتور را صدا می‌زنیم (بخش بعدی)
+    //         app(\App\Services\InvoiceService::class)->convertPreInvoiceToInvoice($preInvoice);
+    //     }
+
+    //     return back()->with('success', 'تصمیم مدیر فروش ثبت شد.');
+    // }
+
+     public function salesManagerDecision(Request $request, PreInvoice $preInvoice, InvoiceService $invoiceService) 
+     {
+        $data = $request->validate([
+            'decision' => 'required|in:wait,approve_and_invoice',
+        ]);
+
+        // اگر مدیر فروش گفته "فعلاً صبر کن"
+        if ($data['decision'] === 'wait') {
+            // منطق ساده: فقط وضعیت را بر اساس حمل به‌روز کن
+            $preInvoice->markAfterSalesManagerDecision(true);
+
+            return back()->with('success', 'تصمیم مدیر فروش ثبت شد و پیش‌فاکتور در وضعیت فعلی باقی ماند.');
+        }
+
+        // تصمیم: "تأیید و تبدیل به فاکتور"
+        // ابتدا وضعیت پیش‌فاکتور را به حالت مناسب برای تبدیل ببریم
+        $preInvoice->markAfterSalesManagerDecision(false);
+
+        // سپس تبدیل واقعی به فاکتور
+        $invoice = $invoiceService->convertPreInvoiceToInvoice($preInvoice);
+
+        return redirect()->route('invoices.show', $invoice)->with('success', 'پیش‌فاکتور توسط مدیر فروش تأیید و به فاکتور تبدیل شد.');
+    }
+
 
 
 }

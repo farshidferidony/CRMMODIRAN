@@ -58,16 +58,16 @@ class PurchaseManagerController extends Controller
     }
 
 
-    
     public function choosePrices(Request $request, PreInvoice $preInvoice)
     {
         $choices = $request->input('choices', []);
 
         DB::transaction(function () use ($choices, $preInvoice) {
-            
+
             foreach ($preInvoice->items as $item) {
 
                 if (! isset($choices[$item->id])) {
+                    // آیتمی که انتخابی براش نیومده، فعلاً skip می‌شود
                     continue;
                 }
 
@@ -100,22 +100,6 @@ class PurchaseManagerController extends Controller
                         'created_by'   => auth()->id(),
                     ]
                 );
-                // $purchasePreInvoice = PreInvoice::firstOrCreate(
-                //     [
-                //         'direction'           => 'purchase',
-                //         'sale_pre_invoice_id' => $preInvoice->id,
-                //         'source_id'           => $assignment->source_id,
-                //         'buyer_id'            => $assignment->buyer_id,
-                //     ],
-                //     [
-                //         'type'         => $preInvoice->type,
-                //         'status'       => \App\Enums\PreInvoiceStatus::Draft,
-                //         'customer_id'  => $preInvoice->customer_id,
-                //         'total_amount' => 0,
-                //         'formal_extra' => null,
-                //         'created_by'   => auth()->id(),
-                //     ]
-                // );
 
                 $item->purchase_pre_invoice_id = $purchasePreInvoice->id;
                 $item->save();
@@ -130,36 +114,138 @@ class PurchaseManagerController extends Controller
                         $oldSum = $old->purchaseItems()->sum(DB::raw('quantity * purchase_unit_price'));
 
                         if ($oldSum == 0 && $old->purchaseItems()->count() == 0) {
-                            // اگر هیچ آیتمی نمانده، خود پیش‌فاکتور خرید را حذف کن
                             $old->delete();
                         } else {
                             $old->update(['total_amount' => $oldSum]);
                         }
                     }
                 }
-
-
-                // if ($oldPurchasePreId && $oldPurchasePreId != $purchasePreInvoice->id) {
-                //     $old = PreInvoice::find($oldPurchasePreId);
-                //     if ($old) {
-                //         $oldSum = $old->items()
-                //             ->sum(DB::raw('quantity * purchase_unit_price'));
-                //         $old->update(['total_amount' => $oldSum]);
-                //     }
-                // }
             }
 
-            $preInvoice->status = \App\Enums\PreInvoiceStatus::ApprovedManager;
-            $preInvoice->save();
+            // 🔹 بعد از پردازش، چک کنیم آیا همه آیتم‌ها assignment انتخاب‌شده دارند یا نه
+            $preInvoice->load('items');
 
+            $allAssigned = $preInvoice->items->every(function ($item) {
+                return ! is_null($item->chosen_purchase_assignment_id);
+            });
+
+            if ($allAssigned) {
+                $preInvoice->status = \App\Enums\PreInvoiceStatus::ApprovedManager;
+                $preInvoice->save();
+            }
+
+
+            // این status روی آخرین purchasePreInvoice ساخته‌شده ست می‌شود.
+            // اگر چند purchasePreInvoice مختلف داری، این‌جا بهتر است همه‌شان را آپدیت کنی.
             $purchasePreInvoice->status = \App\Enums\PreInvoiceStatus::WaitingFinancePurchase;
             $purchasePreInvoice->save();
-
         });
-
 
         return back()->with('success','قیمت‌های نهایی خرید ثبت و پیش‌فاکتورهای خرید بر اساس آخرین انتخاب‌ها به‌روزرسانی شدند.');
     }
+
+    
+    // public function choosePrices(Request $request, PreInvoice $preInvoice)
+    // {
+    //     $choices = $request->input('choices', []);
+
+    //     DB::transaction(function () use ($choices, $preInvoice) {
+            
+    //         foreach ($preInvoice->items as $item) {
+
+    //             if (! isset($choices[$item->id])) {
+    //                 continue;
+    //             }
+
+    //             $assignmentId = $choices[$item->id];
+    //             $assignment   = $item->purchaseAssignments()->find($assignmentId);
+
+    //             if (! $assignment) {
+    //                 continue;
+    //             }
+
+    //             $oldPurchasePreId = $item->purchase_pre_invoice_id;
+
+    //             $item->chosen_purchase_assignment_id = $assignment->id;
+    //             $item->purchase_unit_price           = $assignment->unit_price;
+    //             $item->save();
+
+    //             $purchasePreInvoice = PreInvoice::firstOrCreate(
+    //                 [
+    //                     'direction'           => 'purchase',
+    //                     'sale_pre_invoice_id' => $preInvoice->id,
+    //                     'source_id'           => $assignment->source_id,
+    //                     'buyer_id'            => $assignment->buyer_id,
+    //                 ],
+    //                 [
+    //                     'type'         => $preInvoice->type,
+    //                     'status'       => \App\Enums\PreInvoiceStatus::Draft,
+    //                     'customer_id'  => $preInvoice->customer_id,
+    //                     'total_amount' => 0,
+    //                     'formal_extra' => null,
+    //                     'created_by'   => auth()->id(),
+    //                 ]
+    //             );
+    //             // $purchasePreInvoice = PreInvoice::firstOrCreate(
+    //             //     [
+    //             //         'direction'           => 'purchase',
+    //             //         'sale_pre_invoice_id' => $preInvoice->id,
+    //             //         'source_id'           => $assignment->source_id,
+    //             //         'buyer_id'            => $assignment->buyer_id,
+    //             //     ],
+    //             //     [
+    //             //         'type'         => $preInvoice->type,
+    //             //         'status'       => \App\Enums\PreInvoiceStatus::Draft,
+    //             //         'customer_id'  => $preInvoice->customer_id,
+    //             //         'total_amount' => 0,
+    //             //         'formal_extra' => null,
+    //             //         'created_by'   => auth()->id(),
+    //             //     ]
+    //             // );
+
+    //             $item->purchase_pre_invoice_id = $purchasePreInvoice->id;
+    //             $item->save();
+
+    //             $newSum = $purchasePreInvoice->items()
+    //                 ->sum(DB::raw('quantity * purchase_unit_price'));
+    //             $purchasePreInvoice->update(['total_amount' => $newSum]);
+
+    //             if ($oldPurchasePreId && $oldPurchasePreId != $purchasePreInvoice->id) {
+    //                 $old = PreInvoice::find($oldPurchasePreId);
+    //                 if ($old) {
+    //                     $oldSum = $old->purchaseItems()->sum(DB::raw('quantity * purchase_unit_price'));
+
+    //                     if ($oldSum == 0 && $old->purchaseItems()->count() == 0) {
+    //                         // اگر هیچ آیتمی نمانده، خود پیش‌فاکتور خرید را حذف کن
+    //                         $old->delete();
+    //                     } else {
+    //                         $old->update(['total_amount' => $oldSum]);
+    //                     }
+    //                 }
+    //             }
+
+
+    //             // if ($oldPurchasePreId && $oldPurchasePreId != $purchasePreInvoice->id) {
+    //             //     $old = PreInvoice::find($oldPurchasePreId);
+    //             //     if ($old) {
+    //             //         $oldSum = $old->items()
+    //             //             ->sum(DB::raw('quantity * purchase_unit_price'));
+    //             //         $old->update(['total_amount' => $oldSum]);
+    //             //     }
+    //             // }
+    //         }
+
+    //         $preInvoice->status = \App\Enums\PreInvoiceStatus::ApprovedManager;
+    //         $preInvoice->save();
+
+    //         $purchasePreInvoice->status = \App\Enums\PreInvoiceStatus::WaitingFinancePurchase;
+    //         $purchasePreInvoice->save();
+
+    //     });
+
+
+    //     return back()->with('success','قیمت‌های نهایی خرید ثبت و پیش‌فاکتورهای خرید بر اساس آخرین انتخاب‌ها به‌روزرسانی شدند.');
+    // }
 
 
     

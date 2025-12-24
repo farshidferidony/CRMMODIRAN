@@ -35,7 +35,8 @@
         @foreach($preInvoices as $pi)
           <tr>
             <td>{{ $pi->id }}</td>
-            <td>{{ $pi->customer?->display_name }}</td>
+            <td>{{ $pi->customer->display_name ?? '-' }}</td>
+            
             <td>{{ $pi->type }}</td>
             <td>{{ $pi->status }}</td>
             <td>{{ number_format($pi->total_amount) }}</td>

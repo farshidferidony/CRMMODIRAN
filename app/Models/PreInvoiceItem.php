@@ -96,6 +96,11 @@ class PreInvoiceItem extends Model
         return $this->belongsTo(PurchaseAssignment::class, 'chosen_purchase_assignment_id');
     }
 
+    public function source()
+    {
+        return $this->belongsTo(Source::class); // اگر مدل منبع داری
+    }
+
 }
 
 

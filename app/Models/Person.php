@@ -49,12 +49,12 @@ class Person extends Model
         return $this->morphToMany(Customer::class, 'linkable', 'customer_links');
     }
 
-    public function companies()
-    {
-        return $this->belongsToMany(Company::class, 'company_customer_roles')
-            ->withPivot('role')
-            ->withTimestamps();
-    }
+    // public function companies()
+    // {
+    //     return $this->belongsToMany(Company::class, 'company_customer_roles')
+    //         ->withPivot('role')
+    //         ->withTimestamps();
+    // }
 
     // public function contacts()
     // {
@@ -65,5 +65,22 @@ class Person extends Model
     {
         return $this->morphMany(Address::class, 'addressable');
     }
+
+    // Person.php
+    public function getDisplayNameAttribute()
+    {
+        return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+    }
+
+    // App\Models\Person.php
+
+    public function companies()
+    {
+        return $this->belongsToMany(Company::class, 'company_customer_roles', 'person_id', 'company_id')
+                    ->withPivot('role')
+                    ->withTimestamps();
+    }
+
+
 
 }

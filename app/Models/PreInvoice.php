@@ -11,6 +11,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Enums\PreInvoiceStatus;
 
+use App\Enums\TransportStatus;
+use App\Enums\TransportVehicleStatus;
 
 
 class PreInvoice extends Model
@@ -365,12 +367,47 @@ class PreInvoice extends Model
         return $this->plans()->count() > 0;
     }
 
+    // public function canBeConvertedToInvoice(): bool
+    // {
+    //     return $this->status === \App\Enums\PreInvoiceStatus::CustomerApproved
+    //         && $this->hasPaymentPlan()
+    //         && $this->allPurchaseApprovedByFinance(); // از قبل داریم
+    // }
+
     public function canBeConvertedToInvoice(): bool
     {
-        return $this->status === \App\Enums\PreInvoiceStatus::CustomerApproved
-            && $this->hasPaymentPlan()
-            && $this->allPurchaseApprovedByFinance(); // از قبل داریم
+        if ($this->direction === 'sale') {
+            return $this->status === PreInvoiceStatus::CustomerApproved
+                && $this->hasPaymentPlan()
+                && $this->allPurchaseApprovedByFinance();
+        }
+
+        if ($this->direction === 'purchase') {
+            // ۱) همه پیش‌فاکتورهای خرید مرتبط تکمیل مالی و خریدی
+            if (! $this->isPurchaseFullyCompleted()) {
+                return false;
+            }
+
+            // ۲) حمل برای این پیش‌فاکتور خرید شروع شده باشد
+            $hasAnyTransportStarted = $this->transports()
+                ->whereHas('vehicles', function ($q) {
+                    $q->whereIn('status', [
+                        \App\Enums\TransportVehicleStatus::Loading,
+                        \App\Enums\TransportVehicleStatus::Loaded,
+                        \App\Enums\TransportVehicleStatus::EnRoute,
+                        \App\Enums\TransportVehicleStatus::Arrived,
+                        \App\Enums\TransportVehicleStatus::Unloading,
+                        \App\Enums\TransportVehicleStatus::Unloaded,
+                    ]);
+                })
+                ->exists();
+
+            return $hasAnyTransportStarted;
+        }
+
+        return false;
     }
+
 
     public function isPurchaseFullyCompleted(): bool
     {
@@ -400,10 +437,81 @@ class PreInvoice extends Model
 
     public function transports()
     {
-        return $this->hasMany(Transport::class, 'pre_invoice_id');
+        return $this->hasMany(Transport::class);
+    }
+
+    public function updateStatusFromTransports(): void
+    {
+        $transports = $this->transports()->with('vehicles')->get();
+
+        $allVehicles = $transports->flatMap->vehicles;
+
+        if ($allVehicles->isEmpty()) {
+            // اگر خواستی همین‌جا ShippingPrepared ست شود:
+            // $this->update(['status' => PreInvoiceStatus::ShippingPrepared->value]);
+            return;
+        }
+
+        $hasLoadedOrMore = $allVehicles->contains(function ($v) {
+            return in_array($v->status, [
+                TransportVehicleStatus::Loading,
+                TransportVehicleStatus::Loaded,
+                TransportVehicleStatus::EnRoute,
+                TransportVehicleStatus::Arrived,
+                TransportVehicleStatus::Unloading,
+                TransportVehicleStatus::Unloaded,
+            ]);
+        });
+
+        $allUnloaded = $allVehicles->every(function ($v) {
+            return $v->status === TransportVehicleStatus::Unloaded;
+        });
+
+        if ($allUnloaded) {
+            $this->update([
+                'status' => PreInvoiceStatus::Delivered->value,
+            ]);
+        } elseif ($hasLoadedOrMore) {
+            $this->update([
+                'status' => PreInvoiceStatus::ShippingInProgress->value,
+            ]);
+        } else {
+            $this->update([
+                'status' => PreInvoiceStatus::ShippingPrepared->value,
+            ]);
+        }
+    }
+
+    public function markAfterSalesManagerDecision(bool $waitForFullUnload): void
+    {
+        // اگر می‌خواهی صبر کنی تا همه تخلیه کامل شوند
+        if ($waitForFullUnload) {
+            $this->updateStatusFromTransports(); // همان متدی که قبلاً ساختیم
+            return;
+        }
+
+        // اگر مدیر فروش گفت: "نمی‌خواهم صبر کنم، برویم به فاکتور"
+        $this->update([
+            'status' => PreInvoiceStatus::Invoiced->value, // یا هر استیت مناسب دیگر
+        ]);
+    }
+
+    public function scopeNotInvoiced($q)
+    {
+        return $q->where('status', '!=', \App\Enums\PreInvoiceStatus::Invoiced)->where('status', '!=', \App\Enums\PreInvoiceStatus::Closed);
     }
 
 
+    public function allItemsPurchasePriced(): bool
+    {
+        // اگر آیتمی بدون قیمت خرید نهایی باشد، false
+        return $this->saleItems()->whereNull('purchase_unit_price')->count() === 0;
+    }
+
+    public function allItemsSalePriced(): bool
+    {
+        return $this->items()->whereNull('sale_unit_price')->count() === 0;
+    }
 
 
     // public function canSendToPurchase(): bool
